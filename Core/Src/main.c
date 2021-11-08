@@ -170,7 +170,6 @@ int main(void)
 	  printCardinalDirection(cardinalDirection);
 
 	  int currentDistance = actualDistance;
-	  strcpy((char*)buf, "HELLO\r\n");
 	  sprintf((char*)buf, "Current Distance: %d\n\r", currentDistance);
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 
