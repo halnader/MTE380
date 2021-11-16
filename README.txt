@@ -14,3 +14,7 @@ D11 (board) -> PA_7 (mcu) pwm to Pin 7 L293
 D10 (board) -> PB_6 (mcu) gpio to Pin 9 L293
 D9 (board) -> PC_7 (mcu) pwm to Pin 15 L293
 D8 (board) -> PA_9 (mcu) pwm to Pin 10 L293
+
+Pins for TCS Colour
+D15 (board) -> PB_8 (mcu) I2C1_SCL
+D14 (board) -> PB_9 (mcu) I2C1_SDA
