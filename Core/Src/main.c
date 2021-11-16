@@ -35,6 +35,12 @@ typedef struct IMU_DATA{
 	int16_t mag_y;
 	int16_t mag_z;
 }IMU_DATA;
+typedef struct TCS_COLOUR_DATA {
+	uint16_t clear;
+	uint16_t red;
+	uint16_t green;
+	uint16_t blue;
+}TCS_COLOUR_DATA;
 typedef enum tag_COMPASS_HEADING{
 	N,
 	NE,
@@ -67,6 +73,16 @@ typedef enum tag_COMPASS_HEADING{
 #define ICM20948_MAG_STATUS2 0x18 //ST2
 #define ICM20948_MAG_CNTL2 0x31 //CNTL
 #define ICM20948_MAG_CNTL3 0x32
+
+#define TCS_I2C_DELAY 500
+
+#define TCS_COL_EN_REG 0x80
+#define TCS_COL_POWER_NO_WAIT 0x03
+#define TCS_COL_POWER_WAIT 0x0B
+#define TCS_COL_STATUS_REG 0x93
+#define TCS_COL_VALID_BIT 0x01 //bit 0
+#define TCS_COL_READ_DATA_REG 0xB4
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -90,6 +106,7 @@ UART_HandleTypeDef huart2;
 uint16_t adc_buf[ADC_BUF_LEN];
 static const uint8_t ICM20948_ADDR = (0x68 << 1);
 static const uint8_t AK09916_ADDR = (0x0C << 1);
+static const uint8_t TCS34725_ADDR = (0x29 << 1);
 volatile int actualDistance = 0;
 /* USER CODE END PV */
 
@@ -110,11 +127,14 @@ int calculateDistanceFromSensor(uint16_t voltage);
 COMPASS_HEADING findCardinalDirection(int degrees);
 int findCompassHeading(uint16_t x, uint16_t y);
 void printCardinalDirection(COMPASS_HEADING direction);
+bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
+TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-IMU_DATA imu_data;
+volatile IMU_DATA imu_data;
+volatile TCS_COLOUR_DATA tcs_colour_data;
 uint8_t buf[48];
 /* USER CODE END 0 */
 
@@ -612,7 +632,7 @@ void printCardinalDirection(COMPASS_HEADING direction){
 
 int calculateDistanceFromSensor(uint16_t voltage){
 	//https://learn.sparkfun.com/tutorials/analog-to-digital-conversion/all
-	int actualVoltage = voltage * (3.3/65536);
+	int actualVoltage = voltage * (3.3/4096);
 	//range of sensor is 40cm to 4cm
 	//relation is approximately linear between measured voltage and inverse distance
 	//equation relating distance to voltage
@@ -621,7 +641,7 @@ int calculateDistanceFromSensor(uint16_t voltage){
 	//1.25 = 12*(0.09) + b
 	//b = 0.17
 	//distance = ( 1 / ( (voltage - 0.17) / 12 ) ) - 0.42 ; (cm)
-	int distance = ( 1 / ( (actualVoltage - 0.17) / 12 ) ) - 0.42;
+	int distance = ( 1 / ( (actualVoltage - 0.17) / 9.0 ) ) - 0.42;
 	return distance;
 }
 //Called when buffer is completely filled
@@ -794,6 +814,69 @@ IMU_DATA read_imu_sensor(void){
 	data.mag_z = mag_read_z;
 
 	/*MAGNETOMETER DATA REGISTER READS ---- END*/
+
+	return data;
+}
+bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
+	HAL_StatusTypeDef HAL_tcs_ret;
+	uint8_t cmd_buf[1];
+
+	//power on sensor
+	cmd_buf[0] = TCS_COL_EN_REG;
+	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
+	cmd_buf[0] = TCS_COL_POWER_NO_WAIT;
+	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
+
+	if (HAL_tcs_ret == HAL_OK){
+		return true;
+	}
+	return false;
+}
+TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
+	TCS_COLOUR_DATA data = {0,0,0,0};
+
+	HAL_StatusTypeDef HAL_tcs_ret;
+	uint8_t cmd_buf[1];
+	uint8_t rec_buf[8];
+
+	int16_t tcs_read_clear = 0;
+	int16_t tcs_read_red = 0;
+	int16_t tcs_read_green = 0;
+	int16_t tcs_read_blue = 0;
+
+	volatile uint8_t tcs_status = 0;
+
+	//Read status register
+	cmd_buf[0] = TCS_COL_STATUS_REG;
+	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
+	HAL_tcs_ret = HAL_I2C_Master_Receive(hi2c, TCS34725_ADDR, rec_buf, 1, TCS_I2C_DELAY);
+	if(HAL_tcs_ret != HAL_OK)
+		return data;
+	tcs_status = rec_buf[0];
+
+	//check AVAILD bit for valid output
+	while (!(tcs_status & TCS_COL_VALID_BIT)){
+		HAL_tcs_ret = HAL_I2C_Master_Receive(hi2c, TCS34725_ADDR, rec_buf, 1, TCS_I2C_DELAY);
+		tcs_status = rec_buf[0];
+	}
+
+	//read colour channel data
+	cmd_buf[0] = TCS_COL_READ_DATA_REG;
+	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
+	HAL_tcs_ret = HAL_I2C_Master_Receive(hi2c, TCS34725_ADDR, rec_buf, 8, TCS_I2C_DELAY);
+
+	if(HAL_tcs_ret != HAL_OK)
+		return data;
+
+	tcs_read_clear = ((uint16_t)rec_buf[1] << 8) | rec_buf[0];
+	tcs_read_red = ((uint16_t)rec_buf[3] << 8) | rec_buf[2];
+	tcs_read_green = ((uint16_t)rec_buf[5] << 8) | rec_buf[4];
+	tcs_read_blue = ((uint16_t)rec_buf[7] << 8) | rec_buf[6];
+
+	data.clear = tcs_read_clear;
+	data.red = tcs_read_red;
+	data.green = tcs_read_green;
+	data.blue = tcs_read_blue;
 
 	return data;
 }
