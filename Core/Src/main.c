@@ -205,15 +205,22 @@ int main(void)
   /* USER CODE BEGIN 2 */
 //  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
 //  HAL_TIM_Base_Start_IT(&htim2);
-  start_motor_pwm();
+//  start_motor_pwm();
 
 //  setup_imu_sensor();
+  setup_tcs_colour_sensor(&hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  TCS_COLOUR_DATA colour_data;
+
+	  data = read_tcs_colour_sensor(&hi2c1);
+	  sprintf((char*)buf, "TCS_Clear: %d\nTCS_Red: %d\nTCS_Green: %d\nTCS_Blue: %d\n\r", colour_data.clear, colour_data.red, colour_data.green, colour_data.blue);
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+
 //	  imu_data = read_imu_sensor();
 //	  int compassDegrees = findCompassHeading(imu_data.mag_x, imu_data.mag_y);
 //	  COMPASS_HEADING cardinalDirection = findCardinalDirection(compassDegrees);
@@ -223,11 +230,11 @@ int main(void)
 //	  sprintf((char*)buf, "Current Distance: %d\n\r", currentDistance);
 //	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 
-	  HAL_Delay(2000);
-	  ramp_up_motor_forward(5000);
-	  motor_left_on_spot(3000);
-	  motor_right_on_spot(3000);
-	  ramp_up_motor_backward(5000);
+//	  HAL_Delay(2000);
+//	  ramp_up_motor_forward(5000);
+//	  motor_left_on_spot(3000);
+//	  motor_right_on_spot(3000);
+//	  ramp_up_motor_backward(5000);
 
     /* USER CODE END WHILE */
 
