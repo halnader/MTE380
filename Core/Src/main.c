@@ -94,6 +94,8 @@ typedef enum tag_COMPASS_HEADING{
 #define AS_COL_EN_REG 0x80
 #define AS_COL_PON_BIT 0x01
 #define AS_COL_SP_EN_BIT 0x02
+#define AS_COL_CFG0_REG 0xA9
+#define AS_COL_REG_BANK 0x10
 
 
 /* USER CODE END PD */
