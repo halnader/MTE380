@@ -1,5 +1,10 @@
 MTE380 Resuce Robot
 
+Serial terminal setting:
+115200 baud rate
+Find COM from device manager
+default settings are fine
+
 Pins for Distance Sensor
 A5 (board) -> PC_0 (mcu) ADC1/10 PIN
 
