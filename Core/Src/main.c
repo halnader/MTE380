@@ -91,6 +91,11 @@ typedef enum tag_COMPASS_HEADING{
 
 #define RAMP_DELAY 200
 
+#define AS_COL_EN_REG 0x80
+#define AS_COL_PON_BIT 0x01
+#define AS_COL_SP_EN_BIT 0x02
+
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -117,6 +122,7 @@ uint16_t adc_buf[ADC_BUF_LEN];
 static const uint8_t ICM20948_ADDR = (0x68 << 1);
 static const uint8_t AK09916_ADDR = (0x0C << 1);
 static const uint8_t TCS34725_ADDR = (0x29 << 1);
+static const uint8_t AS7341_ADDR = (0x39 << 1);
 volatile int actualDistance = 0;
 /* USER CODE END PV */
 
@@ -700,8 +706,8 @@ static void MX_GPIO_Init(void)
 int findCompassHeading(uint16_t x, uint16_t y){
 	double degrees = 0;
 	//x and y are signed, cast to double, multiply by 0.15 to convert to microTesla
-	double x_signed = (double)x * 0.15;
-	double y_signed = (double)y *0.15;
+	double x_signed = (double)((int16_t)x);
+	double y_signed = (double)((int16_t)y);
 
 	//equations from honeywell appl. note AN-203
 	if (y_signed > 0){
