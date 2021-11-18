@@ -220,6 +220,7 @@ int main(void)
 	  colour_data = read_tcs_colour_sensor(&hi2c1);
 	  sprintf((char*)buf, "TCS_Clear: %d\nTCS_Red: %d\nTCS_Green: %d\nTCS_Blue: %d\n\r", colour_data.clear, colour_data.red, colour_data.green, colour_data.blue);
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  HAL_Delay(2000);
 
 //	  imu_data = read_imu_sensor();
 //	  int compassDegrees = findCompassHeading(imu_data.mag_x, imu_data.mag_y);
