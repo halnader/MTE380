@@ -52,6 +52,12 @@ typedef enum tag_COMPASS_HEADING{
 	NW,
 	ERR,
 } COMPASS_HEADING;
+typedef enum STATE_MACHINE{
+	navigation,
+	found,
+	drop_continue,
+	drop_end
+}STATE_MACHINE;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -126,6 +132,7 @@ static const uint8_t AK09916_ADDR = (0x0C << 1);
 static const uint8_t TCS34725_ADDR = (0x29 << 1);
 static const uint8_t AS7341_ADDR = (0x39 << 1);
 volatile int actualDistance = 0;
+volatile STATE_MACHINE state = navigation;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -203,9 +210,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-//  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
-//  HAL_TIM_Base_Start_IT(&htim2);
-  start_motor_pwm();
+//  start_motor_pwm();
 
 //  setup_imu_sensor();
   /* USER CODE END 2 */
@@ -214,20 +219,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  imu_data = read_imu_sensor();
-//	  int compassDegrees = findCompassHeading(imu_data.mag_x, imu_data.mag_y);
-//	  COMPASS_HEADING cardinalDirection = findCardinalDirection(compassDegrees);
-//	  printCardinalDirection(cardinalDirection);
-//
-//	  int currentDistance = actualDistance;
-//	  sprintf((char*)buf, "Current Distance: %d\n\r", currentDistance);
-//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-
-	  HAL_Delay(2000);
-	  ramp_up_motor_forward(5000);
-	  motor_left_on_spot(3000);
-	  motor_right_on_spot(3000);
-	  ramp_up_motor_backward(5000);
 
     /* USER CODE END WHILE */
 
@@ -1157,6 +1148,9 @@ void motor_right_on_spot(uint32_t time){
 	}
 	HAL_Delay(time);
 	motor_stop();
+}
+STATE_MACHINE navigation_state(void){
+
 }
 /* USER CODE END 4 */
 
