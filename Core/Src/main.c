@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +50,7 @@ typedef struct AS_COLOUR_DATA {
 	uint16_t ADC_CH_1;
 	uint16_t ADC_CH_0;
 }AS_COLOUR_DATA;
-typedef enum tag_COMPASS_HEADING{
+typedef enum COMPASS_HEADING{
 	N,
 	NE,
 	E,
@@ -63,9 +64,32 @@ typedef enum tag_COMPASS_HEADING{
 typedef enum STATE_MACHINE{
 	navigation,
 	found,
+	search,
 	drop_continue,
-	drop_end
+	drop_end,
+	errorSM
 }STATE_MACHINE;
+typedef enum DETECTED_COLOUR{
+	red,
+	blue,
+	green,
+	brown,
+	errorDC
+}DETECTED_COLOUR;
+typedef struct TCS_COLOUR_CALIBRATION_DATA{
+	uint16_t _clear;
+	uint16_t _red;
+	uint16_t _green;
+	uint16_t _blue;
+}TCS_COLOUR_CALIBRATION_DATA;
+typedef struct AS_COLOUR_CALIBRATION_DATA{
+	uint16_t _ADC_CH_5;
+	uint16_t _ADC_CH_4;
+	uint16_t _ADC_CH_3;
+	uint16_t _ADC_CH_2;
+	uint16_t _ADC_CH_1;
+	uint16_t _ADC_CH_0;
+}AS_COLOUR_CALIBRATION_DATA;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -97,14 +121,6 @@ typedef enum STATE_MACHINE{
 #define TCS_COL_VALID_BIT 0x01 //bit 0
 #define TCS_COL_READ_DATA_REG 0xB4
 
-#define MOTOR_100PC 40
-#define MOTOR_75PC 30
-#define MOTOR_50PC 20
-#define MOTOR_25PC 10
-#define MOTOR_0PC 0
-
-#define RAMP_DELAY 200
-
 #define AS_I2C_DELAY 500
 
 #define AS_COL_ENABLE_REG 0x80
@@ -125,6 +141,14 @@ typedef enum STATE_MACHINE{
 #define AS_COL_AVALID_BIT 0x40
 #define AS_COL_ASTATUS_REG 0x94
 
+#define TCS_COLOUR_TOLERANCE 25
+#define AS_COLOUR_TOLERANCE 25
+
+#define MOTOR_RAMP_DELAY 50
+
+//#define determine_colour(x) _Generic((x),\
+//									TCS_COLOUR_DATA: determine_tcs_colour,\
+//									AS_COLOUR_DATA: determine_as_colour)(x)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -156,6 +180,10 @@ volatile int actualDistance = 0;
 volatile STATE_MACHINE state = navigation;
 volatile bool legoman_pickedup = false;
 volatile bool return_to_start = false;
+volatile int left_motor_curr_speed = 0;
+volatile int right_motor_curr_speed = 0;
+TCS_COLOUR_CALIBRATION_DATA tcs_calibration_data[4];
+AS_COLOUR_CALIBRATION_DATA as_calibration_data[4];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -182,12 +210,12 @@ TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
 bool setup_as_colour_sensor(I2C_HandleTypeDef * hi2c);
 AS_COLOUR_DATA read_as_colour_sensor(I2C_HandleTypeDef * hi2c);
 void start_motor_pwm(void);
-//time is how long actio is performed before stopping, 0 time is forever
-void ramp_up_motor_forward(uint32_t time);
-void ramp_up_motor_backward(uint32_t time);
-void motor_left_on_spot(uint32_t time);
-void motor_right_on_spot(uint32_t time);
-void motor_stop(void);
+void left_motor_speed(int speed);
+void right_motor_speed(int speed);
+void follow_line(void);
+void check_if_bullseye_crossed(void);
+void calibrate_as_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
+void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -237,6 +265,45 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   setup_as_colour_sensor(&hi2c1);
+
+  //calibration
+  //Step 1: calibrate front right
+  //place front right over red
+  calibrate_as_colour_sensor(&hi2c1, red);
+  //place front right over green
+  calibrate_as_colour_sensor(&hi2c1, green);
+  //place front right over blue
+  calibrate_as_colour_sensor(&hi2c1, blue);
+  //place front right over brown
+  calibrate_as_colour_sensor(&hi2c1, brown);
+
+  //Step 2: calibrate front left
+  //place front left over red
+  calibrate_as_colour_sensor(&hi2c2, red);
+  //place front left over green
+  calibrate_as_colour_sensor(&hi2c2, green);
+  //place front left over blue
+  calibrate_as_colour_sensor(&hi2c2, blue);
+  //place front left over brown
+  calibrate_as_colour_sensor(&hi2c2, brown);
+
+  //Step 3: calibrate back right
+  //place back right over red
+  calibrate_tcs_colour_sensor(&hi2c1, red);
+  //place back right over green
+  calibrate_tcs_colour_sensor(&hi2c1, green);
+  //place back right over blue
+  calibrate_tcs_colour_sensor(&hi2c1, blue);
+  calibrate_tcs_colour_sensor(&hi2c1, brown);
+
+  //Step 4: calibrate back left
+  //place back left over red
+  calibrate_tcs_colour_sensor(&hi2c2, red);
+  //place back left over green
+  calibrate_tcs_colour_sensor(&hi2c2, green);
+  //place back left over blue
+  calibrate_tcs_colour_sensor(&hi2c2, blue);
+  calibrate_tcs_colour_sensor(&hi2c2, brown);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -246,11 +313,27 @@ int main(void)
 	  switch (state){
 	  case (navigation):
 			  follow_line();
-			  if (return_to_start && legoman_pickedup){
+	  	  	  check_if_bullseye_crossed();
+			  if (!return_to_start && legoman_pickedup){
 				  state = found;
 			  }
 			  break;
 	  case (found):
+			  stop_and_approach();
+	  	  	  grab_legoman();
+	  	  	  if (legoman_pickedup && return_to_start){
+	  	  		  state = search;
+	  	  	  }
+			  break;
+	  case (search):
+			  follow_line();
+			  check_if_safezone_crossed();
+			  check_if_made_to_end();
+			  if(!legoman_pickedup && return_to_start){
+				  state = drop_continue;
+			  } else if (!legoman_pickedup && !return_to_start) {
+				  state = drop_end;
+			  }
 			  break;
 	  case (drop_continue):
 			  break;
@@ -259,19 +342,6 @@ int main(void)
 	  default:
 		  break;
 	  }
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
-}
-
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -495,9 +565,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 42000;
+  htim1.Init.Prescaler = 6588;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 40;
+  htim1.Init.Period = 255;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -621,9 +691,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 42000;
+  htim3.Init.Prescaler = 6588;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 40;
+  htim3.Init.Period = 255;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
@@ -725,11 +795,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  /*Configure GPIO pin : B1_Pin_Pin */
+  GPIO_InitStruct.Pin = B1_Pin_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(B1_Pin_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA5 */
   GPIO_InitStruct.Pin = GPIO_PIN_5;
@@ -1220,111 +1290,279 @@ void start_motor_pwm(){
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 }
-void motor_stop(){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
-
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_0PC);	//left
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_0PC);	//right
-
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_0PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_0PC);
-}
-void ramp_up_motor_forward(uint32_t time){
+void left_motor_speed(int speed){
 	//enable
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
+	if (speed >= 0){
+		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, speed);	//left forward
+		if (speed == 0){
+			// disable motor
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+		}
+	} else {
+		__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, abs(speed));	//left backward
 	}
-	HAL_Delay(time);
-	motor_stop();
 }
-void ramp_up_motor_backward(uint32_t time){
+void right_motor_speed(int speed){
 	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
+	if (speed >= 0){
+		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, speed);	//right forward
+		if (speed == 0){
+			// disable motor
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+		}
+	} else {
+		__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, speed);	//right backward
 	}
-	HAL_Delay(time);
-	motor_stop();
 }
-void motor_left_on_spot(uint32_t time){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
+	DETECTED_COLOUR colour = errorDC;
 
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
-	}
-	HAL_Delay(time);
-	motor_stop();
+	if (data.clear < tcs_calibration_data[red]._clear + TCS_COLOUR_TOLERANCE &&
+		data.clear > tcs_calibration_data[red]._clear - TCS_COLOUR_TOLERANCE &&
+		data.red < tcs_calibration_data[red]._red + TCS_COLOUR_TOLERANCE &&
+		data.red > tcs_calibration_data[red]._red - TCS_COLOUR_TOLERANCE &&
+		data.green < tcs_calibration_data[red]._green + TCS_COLOUR_TOLERANCE &&
+		data.green > tcs_calibration_data[red]._green - TCS_COLOUR_TOLERANCE &&
+		data.blue < tcs_calibration_data[red]._blue + TCS_COLOUR_TOLERANCE &&
+		data.blue > tcs_calibration_data[red]._blue - TCS_COLOUR_TOLERANCE)
+		colour = red;
+	else if (data.clear < tcs_calibration_data[green]._clear + TCS_COLOUR_TOLERANCE &&
+		data.clear > tcs_calibration_data[green]._clear - TCS_COLOUR_TOLERANCE &&
+		data.red < tcs_calibration_data[green]._red + TCS_COLOUR_TOLERANCE &&
+		data.red > tcs_calibration_data[green]._red - TCS_COLOUR_TOLERANCE &&
+		data.green < tcs_calibration_data[green]._green + TCS_COLOUR_TOLERANCE &&
+		data.green > tcs_calibration_data[green]._green - TCS_COLOUR_TOLERANCE &&
+		data.blue < tcs_calibration_data[green]._blue + TCS_COLOUR_TOLERANCE &&
+		data.blue > tcs_calibration_data[green]._blue - TCS_COLOUR_TOLERANCE)
+		colour = green;
+	else if (data.clear < tcs_calibration_data[blue]._clear + TCS_COLOUR_TOLERANCE &&
+		data.clear > tcs_calibration_data[blue]._clear - TCS_COLOUR_TOLERANCE &&
+		data.red < tcs_calibration_data[blue]._red + TCS_COLOUR_TOLERANCE &&
+		data.red > tcs_calibration_data[blue]._red - TCS_COLOUR_TOLERANCE &&
+		data.green < tcs_calibration_data[blue]._green + TCS_COLOUR_TOLERANCE &&
+		data.green > tcs_calibration_data[blue]._green - TCS_COLOUR_TOLERANCE &&
+		data.blue < tcs_calibration_data[blue]._blue + TCS_COLOUR_TOLERANCE &&
+		data.blue > tcs_calibration_data[blue]._blue - TCS_COLOUR_TOLERANCE)
+		colour = blue;
+	else if (data.clear < tcs_calibration_data[brown]._clear + TCS_COLOUR_TOLERANCE &&
+		data.clear > tcs_calibration_data[brown]._clear - TCS_COLOUR_TOLERANCE &&
+		data.red < tcs_calibration_data[brown]._red + TCS_COLOUR_TOLERANCE &&
+		data.red > tcs_calibration_data[brown]._red - TCS_COLOUR_TOLERANCE &&
+		data.green < tcs_calibration_data[brown]._green + TCS_COLOUR_TOLERANCE &&
+		data.green > tcs_calibration_data[brown]._green - TCS_COLOUR_TOLERANCE &&
+		data.blue < tcs_calibration_data[brown]._blue + TCS_COLOUR_TOLERANCE &&
+		data.blue > tcs_calibration_data[brown]._blue - TCS_COLOUR_TOLERANCE)
+		colour = brown;
+	return colour;
 }
-void motor_right_on_spot(uint32_t time){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+DETECTED_COLOUR determine_as_colour(AS_COLOUR_DATA data){
+	DETECTED_COLOUR colour = errorDC;
 
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_100PC);
+	if (data.ADC_CH_0 < as_calibration_data[red]._ADC_CH_0 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_0 > as_calibration_data[red]._ADC_CH_0 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 < as_calibration_data[red]._ADC_CH_1 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 > as_calibration_data[red]._ADC_CH_1 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 < as_calibration_data[red]._ADC_CH_2 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 > as_calibration_data[red]._ADC_CH_2 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 < as_calibration_data[red]._ADC_CH_3 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 > as_calibration_data[red]._ADC_CH_3 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 < as_calibration_data[red]._ADC_CH_4 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 > as_calibration_data[red]._ADC_CH_4 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 < as_calibration_data[red]._ADC_CH_5 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 > as_calibration_data[red]._ADC_CH_5 - AS_COLOUR_TOLERANCE)
+		colour = red;
+	else if (data.ADC_CH_0 < as_calibration_data[green]._ADC_CH_0 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_0 > as_calibration_data[green]._ADC_CH_0 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 < as_calibration_data[green]._ADC_CH_1 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 > as_calibration_data[green]._ADC_CH_1 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 < as_calibration_data[green]._ADC_CH_2 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 > as_calibration_data[green]._ADC_CH_2 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 < as_calibration_data[green]._ADC_CH_3 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 > as_calibration_data[green]._ADC_CH_3 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 < as_calibration_data[green]._ADC_CH_4 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 > as_calibration_data[green]._ADC_CH_4 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 < as_calibration_data[green]._ADC_CH_5 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 > as_calibration_data[green]._ADC_CH_5 - AS_COLOUR_TOLERANCE)
+		colour = green;
+	else if (data.ADC_CH_0 < as_calibration_data[blue]._ADC_CH_0 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_0 > as_calibration_data[blue]._ADC_CH_0 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 < as_calibration_data[blue]._ADC_CH_1 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 > as_calibration_data[blue]._ADC_CH_1 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 < as_calibration_data[blue]._ADC_CH_2 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 > as_calibration_data[blue]._ADC_CH_2 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 < as_calibration_data[blue]._ADC_CH_3 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 > as_calibration_data[blue]._ADC_CH_3 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 < as_calibration_data[blue]._ADC_CH_4 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 > as_calibration_data[blue]._ADC_CH_4 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 < as_calibration_data[blue]._ADC_CH_5 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 > as_calibration_data[blue]._ADC_CH_5 - AS_COLOUR_TOLERANCE)
+		colour = blue;
+	else if (data.ADC_CH_0 < as_calibration_data[brown]._ADC_CH_0 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_0 > as_calibration_data[brown]._ADC_CH_0 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 < as_calibration_data[brown]._ADC_CH_1 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_1 > as_calibration_data[brown]._ADC_CH_1 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 < as_calibration_data[brown]._ADC_CH_2 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_2 > as_calibration_data[brown]._ADC_CH_2 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 < as_calibration_data[brown]._ADC_CH_3 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_3 > as_calibration_data[brown]._ADC_CH_3 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 < as_calibration_data[brown]._ADC_CH_4 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_4 > as_calibration_data[brown]._ADC_CH_4 - AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 < as_calibration_data[brown]._ADC_CH_5 + AS_COLOUR_TOLERANCE &&
+		data.ADC_CH_5 > as_calibration_data[brown]._ADC_CH_5 - AS_COLOUR_TOLERANCE)
+		colour = brown;
 
-	if (time == 0) {
-		return;
-	}
-	HAL_Delay(time);
-	motor_stop();
+	return colour;
 }
 void follow_line(void){
 	//read colour sensor front left
+	AS_COLOUR_DATA left_colour_data = read_as_colour_sensor(&hi2c1);
+	//read colour sensor from right
+	AS_COLOUR_DATA right_colour_data = read_as_colour_sensor(&hi2c2);
+
+	DETECTED_COLOUR left_colour = determine_as_colour(left_colour_data);
+	DETECTED_COLOUR right_colour = determine_as_colour(right_colour_data);
+
+	if (left_colour == red){
+		//turn robot slightly right
+		left_motor_speed(left_motor_curr_speed - 50);
+		HAL_Delay(50);
+		left_motor_speed(left_motor_curr_speed + 50);
+	} else if (right_colour == red){
+		//turn robot slightly left
+		right_motor_speed(right_motor_curr_speed - 50);
+		HAL_Delay(50);
+		right_motor_speed(right_motor_curr_speed + 50);
+	}
+}
+void check_if_bullseye_crossed(void){
+	//read colour sensor front left
+	AS_COLOUR_DATA left_colour_data = read_as_colour_sensor(&hi2c1);
+	//read colour sensor from right
+	AS_COLOUR_DATA right_colour_data = read_as_colour_sensor(&hi2c2);
+
+	DETECTED_COLOUR left_colour = determine_as_colour(left_colour_data);
+	DETECTED_COLOUR right_colour = determine_as_colour(right_colour_data);
+
+	if (left_colour == blue || right_colour == blue){
+		return_to_start = true;
+		legoman_pickedup = true;
+		//changes state
+	}
+}
+void calibrate_as_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour){
+	//place front right over red then press button (true or 3.3V when not pressed)
+	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+		  //wait until button pushed
+	  }
+	  as_colour_data = read_as_colour_sensor(hi2c);
+	  as_calibration_data[colour]._ADC_CH_0 = as_colour_data.ADC_CH_0;
+	  as_calibration_data[colour]._ADC_CH_1 = as_colour_data.ADC_CH_1;
+	  as_calibration_data[colour]._ADC_CH_2 = as_colour_data.ADC_CH_2;
+	  as_calibration_data[colour]._ADC_CH_3 = as_colour_data.ADC_CH_3;
+	  as_calibration_data[colour]._ADC_CH_4 = as_colour_data.ADC_CH_4;
+	  as_calibration_data[colour]._ADC_CH_5 = as_colour_data.ADC_CH_5;
+
+	  HAL_Delay(2000);
+}
+void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour){
+	//place front right over red then press button (true or 3.3V when not pressed)
+	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+		  //wait until button pushed
+	  }
+	  tcs_colour_data = read_tcs_colour_sensor(hi2c);
+	  tcs_calibration_data[colour]._clear = tcs_colour_data.clear;
+	  tcs_calibration_data[colour]._red = tcs_colour_data.red;
+	  tcs_calibration_data[colour]._green = tcs_colour_data.green;
+	  tcs_calibration_data[colour]._blue = tcs_colour_data.blue;
+
+	  HAL_Delay(2000);
+}
+void stop_and_approach(void){
+	left_motor_speed(0);
+	right_motor_speed(0);
+
+	//slow ramp up
+	left_motor_speed(50);
+	right_motor_speed(50);
+	HAL_Delay(MOTOR_RAMP_DELAY);
+	left_motor_speed(100);
+	right_motor_speed(100);
+	HAL_Delay(MOTOR_RAMP_DELAY);
+	left_motor_speed(150);
+	right_motor_speed(150);
+	//read colour sensor front left
+	AS_COLOUR_DATA left_colour_data = read_as_colour_sensor(&hi2c1);
+	//read colour sensor from right
+	AS_COLOUR_DATA right_colour_data = read_as_colour_sensor(&hi2c2);
+
+	DETECTED_COLOUR left_colour = determine_as_colour(left_colour_data);
+	DETECTED_COLOUR right_colour = determine_as_colour(right_colour_data);
+
+	//until either front sensors detects red
+	while (!(left_colour == red || right_colour == red)){
+		//keep driving forward slowly
+		left_colour_data = read_as_colour_sensor(&hi2c1);
+		right_colour_data = read_as_colour_sensor(&hi2c2);
+		left_colour = determine_as_colour(left_colour_data);
+		right_colour = determine_as_colour(right_colour_data);
+	}
+
+	//stop again
+	left_motor_speed(0);
+	right_motor_speed(0);
+}
+void grab_legoman(void){
+	//close grip
+
+	//drive back
+	left_motor_speed(-100);
+	right_motor_speed(-100);
+	HAL_Delay(500);
+
+	//turn in place until right, then left colour sensors detect red
+	left_motor_speed(100);
+	right_motor_speed(-100);
+
+	//read colour sensor from right
+	AS_COLOUR_DATA right_colour_data = read_as_colour_sensor(&hi2c2);
+	DETECTED_COLOUR right_colour = determine_as_colour(right_colour_data);
+
+	while (!(right_colour == red)){
+		right_colour_data = read_as_colour_sensor(&hi2c2);
+		right_colour = determine_as_colour(right_colour_data);
+	}
+
+	//read colour sensor front left
+	AS_COLOUR_DATA left_colour_data = read_as_colour_sensor(&hi2c1);
+	DETECTED_COLOUR left_colour = determine_as_colour(left_colour_data);
+	//until either front sensors detects red
+	while (!(left_colour == red)){
+		//keep driving forward slowly
+		left_colour_data = read_as_colour_sensor(&hi2c1);
+		left_colour = determine_as_colour(left_colour_data);
+	}
+
+	left_motor_speed(0);
+	right_motor_speed(0);
+
+	legoman_pickedup = true;
+}
+void check_if_safezone_crossed(void){
+	//read colour sensor back left
+	AS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c1);
+	//read colour sensor back right
+	AS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c2);
+
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+
+	if (left_colour == green || right_colour == green){
+		return_to_start = true;
+		legoman_pickedup = true;
+		//changes state
+	}
 }
 /* USER CODE END 4 */
 
