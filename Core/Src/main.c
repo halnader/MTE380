@@ -133,6 +133,8 @@ static const uint8_t TCS34725_ADDR = (0x29 << 1);
 static const uint8_t AS7341_ADDR = (0x39 << 1);
 volatile int actualDistance = 0;
 volatile STATE_MACHINE state = navigation;
+volatile bool legoman_pickedup = false;
+volatile bool return_to_start = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -219,7 +221,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
+	  switch (state){
+	  case (navigation):
+			  follow_line();
+			  if (return_to_start && legoman_pickedup){
+				  state = found;
+			  }
+			  break;
+	  case (found):
+			  break;
+	  case (drop_continue):
+			  break;
+	  case (drop_end):
+			  break;
+	  default:
+		  break;
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -1149,8 +1166,8 @@ void motor_right_on_spot(uint32_t time){
 	HAL_Delay(time);
 	motor_stop();
 }
-STATE_MACHINE navigation_state(void){
-
+void follow_line(void){
+	//read colour sensor front left
 }
 /* USER CODE END 4 */
 
