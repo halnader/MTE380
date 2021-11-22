@@ -162,7 +162,7 @@ void motor_stop(void);
 /* USER CODE BEGIN 0 */
 volatile IMU_DATA imu_data;
 volatile TCS_COLOUR_DATA tcs_colour_data;
-uint8_t buf[48];
+uint8_t buf[250];
 /* USER CODE END 0 */
 
 /**
@@ -203,11 +203,6 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-//  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
-//  HAL_TIM_Base_Start_IT(&htim2);
-//  start_motor_pwm();
-
-//  setup_imu_sensor();
   setup_tcs_colour_sensor(&hi2c1);
   /* USER CODE END 2 */
 
@@ -215,27 +210,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  TCS_COLOUR_DATA colour_data;
-
-	  colour_data = read_tcs_colour_sensor(&hi2c1);
-	  sprintf((char*)buf, "TCS_Clear: %d\nTCS_Red: %d\nTCS_Green: %d\nTCS_Blue: %d\n\r", colour_data.clear, colour_data.red, colour_data.green, colour_data.blue);
+	  tcs_colour_data = read_tcs_colour_sensor(&hi2c1);
+	  sprintf((char*)buf, "TCS_Clear: %d\nTCS_Red: %d\nTCS_Green: %d\nTCS_Blue: %d\n\r", tcs_colour_data.clear, tcs_colour_data.red, tcs_colour_data.green, tcs_colour_data.blue);
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	  HAL_Delay(2000);
-
-//	  imu_data = read_imu_sensor();
-//	  int compassDegrees = findCompassHeading(imu_data.mag_x, imu_data.mag_y);
-//	  COMPASS_HEADING cardinalDirection = findCardinalDirection(compassDegrees);
-//	  printCardinalDirection(cardinalDirection);
-//
-//	  int currentDistance = actualDistance;
-//	  sprintf((char*)buf, "Current Distance: %d\n\r", currentDistance);
-//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-
-//	  HAL_Delay(2000);
-//	  ramp_up_motor_forward(5000);
-//	  motor_left_on_spot(3000);
-//	  motor_right_on_spot(3000);
-//	  ramp_up_motor_backward(5000);
 
     /* USER CODE END WHILE */
 
@@ -993,13 +971,15 @@ IMU_DATA read_imu_sensor(void){
 }
 bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
 	HAL_StatusTypeDef HAL_tcs_ret;
-	uint8_t cmd_buf[1];
+	uint8_t cmd_buf[2];
 
 	//power on sensor
 	cmd_buf[0] = TCS_COL_EN_REG;
-	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
-	cmd_buf[0] = TCS_COL_POWER_NO_WAIT;
-	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
+	cmd_buf[1] = TCS_COL_POWER_NO_WAIT;
+	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 2, TCS_I2C_DELAY);
+
+	//wait at least 2.4ms after first power on
+	HAL_Delay(3);
 
 	if (HAL_tcs_ret == HAL_OK){
 		return true;
@@ -1013,10 +993,10 @@ TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
 	uint8_t cmd_buf[1];
 	uint8_t rec_buf[8];
 
-	int16_t tcs_read_clear = 0;
-	int16_t tcs_read_red = 0;
-	int16_t tcs_read_green = 0;
-	int16_t tcs_read_blue = 0;
+	uint16_t tcs_read_clear = 0;
+	uint16_t tcs_read_red = 0;
+	uint16_t tcs_read_green = 0;
+	uint16_t tcs_read_blue = 0;
 
 	volatile uint8_t tcs_status = 0;
 
