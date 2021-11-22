@@ -216,6 +216,8 @@ void follow_line(void);
 void check_if_bullseye_crossed(void);
 void calibrate_as_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
 void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
+void grab_legoman(void);
+void check_if_safezone_crossed(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -1551,9 +1553,9 @@ void grab_legoman(void){
 }
 void check_if_safezone_crossed(void){
 	//read colour sensor back left
-	AS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c1);
+	TCS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c1);
 	//read colour sensor back right
-	AS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c2);
+	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c2);
 
 	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
 	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
