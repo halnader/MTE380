@@ -41,6 +41,14 @@ typedef struct TCS_COLOUR_DATA {
 	uint16_t green;
 	uint16_t blue;
 }TCS_COLOUR_DATA;
+typedef struct AS_COLOUR_DATA {
+	uint16_t ADC_CH_5;
+	uint16_t ADC_CH_4;
+	uint16_t ADC_CH_3;
+	uint16_t ADC_CH_2;
+	uint16_t ADC_CH_1;
+	uint16_t ADC_CH_0;
+}AS_COLOUR_DATA;
 typedef enum tag_COMPASS_HEADING{
 	N,
 	NE,
@@ -91,12 +99,25 @@ typedef enum tag_COMPASS_HEADING{
 
 #define RAMP_DELAY 200
 
-#define AS_COL_EN_REG 0x80
+#define AS_I2C_DELAY 500
+
+#define AS_COL_ENABLE_REG 0x80
 #define AS_COL_PON_BIT 0x01
 #define AS_COL_SP_EN_BIT 0x02
 #define AS_COL_CFG0_REG 0xA9
-#define AS_COL_REG_BANK 0x10
-
+#define AS_COL_REG_BANK_BIT 0x10
+#define AS_COL_CFG6_REG 0xAF
+#define AS_COL_SMUXEN_BIT 0x10
+#define AS_COL_LED_SEL_BIT 0x08
+#define AS_COL_CONFIG_REG 0x70
+#define AS_COL_LED_REG 0x74
+#define AS_COL_LED_ACT_BIT 0x80
+#define AS_COL_ATIME_REG 0x81
+#define AS_COL_ASTEP_REG_L 0xCA
+#define AS_COL_ASTEP_REG_H 0xCB
+#define AS_COL_STATUS2_REG 0xA3
+#define AS_COL_AVALID_BIT 0x40
+#define AS_COL_ASTATUS_REG 0x94
 
 /* USER CODE END PD */
 
@@ -149,6 +170,8 @@ int findCompassHeading(uint16_t x, uint16_t y);
 void printCardinalDirection(COMPASS_HEADING direction);
 bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
 TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
+bool setup_as_colour_sensor(I2C_HandleTypeDef * hi2c);
+AS_COLOUR_DATA read_as_colour_sensor(I2C_HandleTypeDef * hi2c);
 void start_motor_pwm(void);
 //time is how long actio is performed before stopping, 0 time is forever
 void ramp_up_motor_forward(uint32_t time);
@@ -162,7 +185,8 @@ void motor_stop(void);
 /* USER CODE BEGIN 0 */
 volatile IMU_DATA imu_data;
 volatile TCS_COLOUR_DATA tcs_colour_data;
-uint8_t buf[48];
+volatile AS_COLOUR_DATA as_colour_data;
+uint8_t buf[250];
 /* USER CODE END 0 */
 
 /**
@@ -203,32 +227,19 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-//  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
-//  HAL_TIM_Base_Start_IT(&htim2);
-  start_motor_pwm();
-
-//  setup_imu_sensor();
+  setup_as_colour_sensor(&hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  imu_data = read_imu_sensor();
-//	  int compassDegrees = findCompassHeading(imu_data.mag_x, imu_data.mag_y);
-//	  COMPASS_HEADING cardinalDirection = findCardinalDirection(compassDegrees);
-//	  printCardinalDirection(cardinalDirection);
-//
-//	  int currentDistance = actualDistance;
-//	  sprintf((char*)buf, "Current Distance: %d\n\r", currentDistance);
-//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-
+	  as_colour_data = read_as_colour_sensor(&hi2c1);
+	  sprintf((char*)buf,
+			  "AS_NIR: %d\nAS_CLEAR: %d\nAS_F1(Purple): %d\nAS_F2(Navy): %d\nAS_F3(LBlue): %d\nAS_F4(Cyan): %d\n\r",
+			  as_colour_data.ADC_CH_5, as_colour_data.ADC_CH_4, as_colour_data.ADC_CH_0, as_colour_data.ADC_CH_1, as_colour_data.ADC_CH_2, as_colour_data.ADC_CH_3);
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	  HAL_Delay(2000);
-	  ramp_up_motor_forward(5000);
-	  motor_left_on_spot(3000);
-	  motor_right_on_spot(3000);
-	  ramp_up_motor_backward(5000);
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -1043,6 +1054,128 @@ TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
 	data.red = tcs_read_red;
 	data.green = tcs_read_green;
 	data.blue = tcs_read_blue;
+
+	return data;
+}
+bool setup_as_colour_sensor(I2C_HandleTypeDef * hi2c){
+	//small delay before attempting to communicate with sensor
+	HAL_Delay(200);
+	HAL_StatusTypeDef HAL_as_ret;
+	uint8_t cmd_buf[20];
+	uint8_t rec_buf[20];
+
+	//power on sensor
+	uint8_t enable = 0;
+	cmd_buf[0] = AS_COL_ENABLE_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	enable = rec_buf[0];
+	enable |= AS_COL_PON_BIT;
+	cmd_buf[1] = enable;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+
+	//access registers 0x60 to 0x74 to enable LED
+	//enable reg bank
+	uint8_t cfg0 = 0;
+	cmd_buf[0] = AS_COL_CFG0_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	cfg0 = rec_buf[0];
+	cfg0 |= AS_COL_REG_BANK_BIT;
+	cmd_buf[1] = cfg0;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+	//set LED_SEL in CONFIG
+	uint8_t config = 0;
+	cmd_buf[0] = AS_COL_CONFIG_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	config = rec_buf[0];
+	config |= AS_COL_LED_SEL_BIT;
+	cmd_buf[1] = config;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+	//turn on LED
+	uint8_t led = 0;
+	cmd_buf[0] = AS_COL_LED_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	led = rec_buf[0];
+	led |= AS_COL_LED_ACT_BIT;
+	cmd_buf[1] = led;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+
+	//re-access 0x80 and up registers
+	cmd_buf[0] = AS_COL_CFG0_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	cfg0 = rec_buf[0];
+	cfg0 &= ~AS_COL_REG_BANK_BIT;
+	cmd_buf[1] = cfg0;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+
+	//setup adc timing
+	uint8_t atime = 0;
+	cmd_buf[0] = AS_COL_ATIME_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	atime = rec_buf[0]; //default is 0
+	cmd_buf[1] = 29;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+	uint8_t asetp = 0;
+	cmd_buf[0] = AS_COL_ASTEP_REG_L;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	atime = rec_buf[0]; //default is 999
+	//writing 599 but in 2 bytes so byte L is 57 and H is 2
+	cmd_buf[1] = 0x57;
+	cmd_buf[2] = 0x2;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 3, AS_I2C_DELAY);
+
+	if (HAL_as_ret == HAL_OK){
+		return true;
+	}
+	return false;
+}
+AS_COLOUR_DATA read_as_colour_sensor(I2C_HandleTypeDef * hi2c){
+	AS_COLOUR_DATA data = {0,0,0,0,0,0};
+
+	HAL_StatusTypeDef HAL_as_ret;
+	uint8_t cmd_buf[1];
+	uint8_t rec_buf[13];
+
+	//start spectral measurement
+	uint8_t enable = 0;
+	cmd_buf[0] = AS_COL_ENABLE_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	enable = rec_buf[0];
+	enable |= AS_COL_SP_EN_BIT;
+	cmd_buf[1] = enable;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+
+	HAL_Delay(50);
+
+	volatile uint8_t status2 = 0;
+	cmd_buf[0] = AS_COL_ENABLE_REG;
+	int timeout_count = 10000;
+	while (!(status2 & AS_COL_AVALID_BIT) && timeout_count > 0){
+		HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+		HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+		status2 = rec_buf[0];
+		timeout_count--;
+	}
+
+	cmd_buf[0] = AS_COL_ASTATUS_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(hi2c, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(hi2c, AS7341_ADDR, rec_buf, 13, AS_I2C_DELAY);
+
+	uint8_t astatus = rec_buf[0];
+
+	data.ADC_CH_0 = ((uint16_t)rec_buf[2] << 8) | rec_buf[1];
+	data.ADC_CH_1 = ((uint16_t)rec_buf[4] << 8) | rec_buf[3];
+	data.ADC_CH_2 = ((uint16_t)rec_buf[6] << 8) | rec_buf[5];
+	data.ADC_CH_3 = ((uint16_t)rec_buf[8] << 8) | rec_buf[7];
+	data.ADC_CH_4 = ((uint16_t)rec_buf[10] << 8) | rec_buf[9];
+	data.ADC_CH_5 = ((uint16_t)rec_buf[12] << 8) | rec_buf[11];
 
 	return data;
 }
