@@ -144,6 +144,10 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define TCS_COLOUR_TOLERANCE 25
 #define AS_COLOUR_TOLERANCE 25
 
+#define RED_THRESHOLD 10000
+#define GREEN_THRESHOLD 10000
+#define BLUE_THRESHOLD 10000
+
 #define MOTOR_RAMP_DELAY 50
 
 #define SERVO_FORWARD 180
@@ -275,45 +279,46 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   setup_as_colour_sensor(&hi2c1);
+  start_motor_pwm();
 
   //calibration
-  //Step 1: calibrate front right
-  //place front right over red
-  calibrate_as_colour_sensor(&hi2c1, red);
-  //place front right over green
-  calibrate_as_colour_sensor(&hi2c1, green);
-  //place front right over blue
-  calibrate_as_colour_sensor(&hi2c1, blue);
-  //place front right over brown
-  calibrate_as_colour_sensor(&hi2c1, brown);
-
-  //Step 2: calibrate front left
-  //place front left over red
-  calibrate_as_colour_sensor(&hi2c2, red);
-  //place front left over green
-  calibrate_as_colour_sensor(&hi2c2, green);
-  //place front left over blue
-  calibrate_as_colour_sensor(&hi2c2, blue);
-  //place front left over brown
-  calibrate_as_colour_sensor(&hi2c2, brown);
-
-  //Step 3: calibrate back right
-  //place back right over red
-  calibrate_tcs_colour_sensor(&hi2c1, red);
-  //place back right over green
-  calibrate_tcs_colour_sensor(&hi2c1, green);
-  //place back right over blue
-  calibrate_tcs_colour_sensor(&hi2c1, blue);
-  calibrate_tcs_colour_sensor(&hi2c1, brown);
-
-  //Step 4: calibrate back left
-  //place back left over red
-  calibrate_tcs_colour_sensor(&hi2c2, red);
-  //place back left over green
-  calibrate_tcs_colour_sensor(&hi2c2, green);
-  //place back left over blue
-  calibrate_tcs_colour_sensor(&hi2c2, blue);
-  calibrate_tcs_colour_sensor(&hi2c2, brown);
+//  //Step 1: calibrate front right
+//  //place front right over red
+//  calibrate_as_colour_sensor(&hi2c1, red);
+//  //place front right over green
+//  calibrate_as_colour_sensor(&hi2c1, green);
+//  //place front right over blue
+//  calibrate_as_colour_sensor(&hi2c1, blue);
+//  //place front right over brown
+//  calibrate_as_colour_sensor(&hi2c1, brown);
+//
+//  //Step 2: calibrate front left
+//  //place front left over red
+//  calibrate_as_colour_sensor(&hi2c2, red);
+//  //place front left over green
+//  calibrate_as_colour_sensor(&hi2c2, green);
+//  //place front left over blue
+//  calibrate_as_colour_sensor(&hi2c2, blue);
+//  //place front left over brown
+//  calibrate_as_colour_sensor(&hi2c2, brown);
+//
+//  //Step 3: calibrate back right
+//  //place back right over red
+//  calibrate_tcs_colour_sensor(&hi2c1, red);
+//  //place back right over green
+//  calibrate_tcs_colour_sensor(&hi2c1, green);
+//  //place back right over blue
+//  calibrate_tcs_colour_sensor(&hi2c1, blue);
+//  calibrate_tcs_colour_sensor(&hi2c1, brown);
+//
+//  //Step 4: calibrate back left
+//  //place back left over red
+//  calibrate_tcs_colour_sensor(&hi2c2, red);
+//  //place back left over green
+//  calibrate_tcs_colour_sensor(&hi2c2, green);
+//  //place back left over blue
+//  calibrate_tcs_colour_sensor(&hi2c2, blue);
+//  calibrate_tcs_colour_sensor(&hi2c2, brown);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -1347,6 +1352,16 @@ void right_motor_speed(int speed){
 DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
 
+	//check for max out of the optical channels
+	if (data.red > RED_THRESHOLD && data.red > data.blue && data.red > data.green){
+		colour = red;
+	} else if (data.green > GREEN_THRESHOLD && data.green > data.red && data.green > data.blue){
+		colour = green;
+	} else if (data.blue > BLUE_THRESHOLD && data.blue > data.red && data.blue > data.green){
+		colour = blue;
+	}
+
+	/*
 	if (data.clear < tcs_calibration_data[red]._clear + TCS_COLOUR_TOLERANCE &&
 		data.clear > tcs_calibration_data[red]._clear - TCS_COLOUR_TOLERANCE &&
 		data.red < tcs_calibration_data[red]._red + TCS_COLOUR_TOLERANCE &&
@@ -1383,6 +1398,7 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 		data.blue < tcs_calibration_data[brown]._blue + TCS_COLOUR_TOLERANCE &&
 		data.blue > tcs_calibration_data[brown]._blue - TCS_COLOUR_TOLERANCE)
 		colour = brown;
+	*/
 	return colour;
 }
 DETECTED_COLOUR determine_as_colour(AS_COLOUR_DATA data){
