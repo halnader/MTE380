@@ -154,9 +154,9 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_BACKWARD 0
 #define SERVO_STOP 90
 
-#define SERVO_MAX_PULSE 26
-#define SERVO_NEUTRAL_PULSE 19
-#define SERVO_MIN_PULSE 13
+#define SERVO_MAX_PULSE 4
+#define SERVO_NEUTRAL_PULSE 3
+#define SERVO_MIN_PULSE 2
 
 //#define determine_colour(x) _Generic((x),\
 //									TCS_COLOUR_DATA: determine_tcs_colour,\
