@@ -220,35 +220,18 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  //setup_as_colour_sensor(&hi2c1);
-
-  HAL_StatusTypeDef HAL_as_ret;
-  uint8_t cmd_buf[1];
-  uint8_t rec_buf[2];
-	//power on sensor
-	uint8_t enable = 0;
-	cmd_buf[0] = AS_COL_ENABLE_REG;
-	HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
-	HAL_as_ret = HAL_I2C_Master_Receive(&hi2c1, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
-	enable = rec_buf[0];
-	enable |= AS_COL_PON_BIT;
-	cmd_buf[1] = enable;
-	HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
+  setup_as_colour_sensor(&hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  cmd_buf[0] = 0x92; //WHO_AM_I
-	  HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 1, HAL_MAX_DELAY);
-	  HAL_as_ret = HAL_I2C_Master_Receive(&hi2c1, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
-	  //as_colour_data = read_as_colour_sensor(&hi2c1);
-//	  sprintf((char*)buf,
-//			  "AS_NIR: %d\nAS_CLEAR: %d\nAS_F1(Purple): %d\nAS_F2(Navy): %d\nAS_F3(LBlue): %d\nAS_F4(Cyan): %d\n\r",
-//			  as_colour_data.ADC_CH_5, as_colour_data.ADC_CH_4, as_colour_data.ADC_CH_0, as_colour_data.ADC_CH_1, as_colour_data.ADC_CH_2, as_colour_data.ADC_CH_3);
-//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  as_colour_data = read_as_colour_sensor(&hi2c1);
+	  sprintf((char*)buf,
+			  "AS_NIR: %d\nAS_CLEAR: %d\nAS_F1(Purple): %d\nAS_F2(Navy): %d\nAS_F3(LBlue): %d\nAS_F4(Cyan): %d\n\r",
+			  as_colour_data.ADC_CH_5, as_colour_data.ADC_CH_4, as_colour_data.ADC_CH_0, as_colour_data.ADC_CH_1, as_colour_data.ADC_CH_2, as_colour_data.ADC_CH_3);
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	  HAL_Delay(2000);
     /* USER CODE END WHILE */
 
