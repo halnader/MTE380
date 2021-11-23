@@ -221,16 +221,25 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   //setup_as_colour_sensor(&hi2c1);
+
+  HAL_StatusTypeDef HAL_as_ret;
+  uint8_t cmd_buf[1];
+  uint8_t rec_buf[2];
+	//power on sensor
+	uint8_t enable = 0;
+	cmd_buf[0] = AS_COL_ENABLE_REG;
+	HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 1, AS_I2C_DELAY);
+	HAL_as_ret = HAL_I2C_Master_Receive(&hi2c1, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	enable = rec_buf[0];
+	enable |= AS_COL_PON_BIT;
+	cmd_buf[1] = enable;
+	HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 2, AS_I2C_DELAY);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  uint8_t cmd_buf[1];
-	  uint8_t rec_buf[1];
-
-	  HAL_StatusTypeDef HAL_as_ret;
 
 	  cmd_buf[0] = 0x92; //WHO_AM_I
 	  HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 1, HAL_MAX_DELAY);
