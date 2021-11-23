@@ -154,9 +154,9 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_BACKWARD 0
 #define SERVO_STOP 90
 
-#define SERVO_MAX_PULSE 4
-#define SERVO_NEUTRAL_PULSE 3
-#define SERVO_MIN_PULSE 2
+#define SERVO_MAX_PULSE 40
+#define SERVO_NEUTRAL_PULSE 28
+#define SERVO_MIN_PULSE 20
 
 /* USER CODE END PD */
 
@@ -525,9 +525,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 42000;
+  htim3.Init.Prescaler = 4200;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 40;
+  htim3.Init.Period = 400;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
