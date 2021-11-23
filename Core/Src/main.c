@@ -158,9 +158,6 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_NEUTRAL_PULSE 3
 #define SERVO_MIN_PULSE 2
 
-//#define determine_colour(x) _Generic((x),\
-//									TCS_COLOUR_DATA: determine_tcs_colour,\
-//									AS_COLOUR_DATA: determine_as_colour)(x)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -265,7 +262,7 @@ int main(void)
   MX_I2C3_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  setup_as_colour_sensor(&hi2c1);
+//  setup_as_colour_sensor(&hi2c1);
   start_motor_pwm();
 
   //calibration
@@ -312,38 +309,46 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  switch (state){
-	  case (navigation):
-			  follow_line();
-	  	  	  check_if_bullseye_crossed();
-			  if (!return_to_start && legoman_pickedup){
-				  state = found;
-			  }
-			  break;
-	  case (found):
-			  stop_and_approach();
-	  	  	  grab_legoman();
-	  	  	  if (legoman_pickedup && return_to_start){
-	  	  		  state = search;
-	  	  	  }
-			  break;
-	  case (search):
-			  follow_line();
-			  check_if_safezone_crossed();
-			  //check_if_made_to_end();
-			  if(!legoman_pickedup && return_to_start){
-				  state = drop_continue;
-			  } else if (!legoman_pickedup && !return_to_start) {
-				  state = drop_end;
-			  }
-			  break;
-	  case (drop_continue):
-			  break;
-	  case (drop_end):
-			  break;
-	  default:
-		  break;
-	  }
+	  left_motor_speed(SERVO_FORWARD);
+	  HAL_Delay(5000);
+	  left_motor_speed(SERVO_STOP);
+	  HAL_Delay(5000);
+	  left_motor_speed(SERVO_BACKWARD);
+	  HAL_Delay(5000);
+	  left_motor_speed(SERVO_STOP);
+	  HAL_Delay(5000);
+//	  switch (state){
+//	  case (navigation):
+//			  follow_line();
+//	  	  	  check_if_bullseye_crossed();
+//			  if (!return_to_start && legoman_pickedup){
+//				  state = found;
+//			  }
+//			  break;
+//	  case (found):
+//			  stop_and_approach();
+//	  	  	  grab_legoman();
+//	  	  	  if (legoman_pickedup && return_to_start){
+//	  	  		  state = search;
+//	  	  	  }
+//			  break;
+//	  case (search):
+//			  follow_line();
+//			  check_if_safezone_crossed();
+//			  //check_if_made_to_end();
+//			  if(!legoman_pickedup && return_to_start){
+//				  state = drop_continue;
+//			  } else if (!legoman_pickedup && !return_to_start) {
+//				  state = drop_end;
+//			  }
+//			  break;
+//	  case (drop_continue):
+//			  break;
+//	  case (drop_end):
+//			  break;
+//	  default:
+//		  break;
+//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -713,14 +718,6 @@ int calculateDistanceFromSensor(uint16_t voltage){
 	return distance;
 }
 //Called when buffer is completely filled
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	//ADC reading of analog distance sensor output voltage
-
-	//12-bit adc conversion, using 16bit placeholder
-	uint16_t vOut = adc_buf[0];
-
-	actualDistance = calculateDistanceFromSensor(vOut);
-}
 
 /**
   * @brief Setup IMU Sensor Function
