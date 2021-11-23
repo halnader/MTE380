@@ -144,20 +144,26 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define TCS_COLOUR_TOLERANCE 25
 #define AS_COLOUR_TOLERANCE 25
 
+//----------------------------CONFIG----------------------------------
+//colour detection thresholds
 #define RED_THRESHOLD 10000
 #define GREEN_THRESHOLD 10000
 #define BLUE_THRESHOLD 10000
-
-#define MOTOR_RAMP_DELAY 50
+#define BROWN_R_THRESHOLD 9000
+#define BROWN_G_THRESHOLD 9000
+#define BROWN_B_THRESHOLD 6000
 
 #define SERVO_FORWARD 180
 #define SERVO_BACKWARD 0
 #define SERVO_STOP 90
 
+//max pulse for forward driving, neutral for stop, min for back
 #define SERVO_MAX_PULSE 400
 #define SERVO_NEUTRAL_PULSE 305
 #define SERVO_MIN_PULSE 200
 
+//line following, higher number, sharper turns
+#define LINE_TURN_TIME 50
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -265,7 +271,8 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-//  setup_as_colour_sensor(&hi2c1);
+  setup_tcs_colour_sensor(&hi2c2); //front left
+  setup_tcs_colour_sensor(&hi2c1); //front right
   start_motor_pwm();
 
   //calibration
@@ -315,50 +322,50 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  left_motor_speed(SERVO_FORWARD);
-	  right_motor_speed(SERVO_FORWARD);
-	  HAL_Delay(5000);
-	  left_motor_speed(SERVO_STOP);
-	  right_motor_speed(SERVO_STOP);
-	  HAL_Delay(5000);
-	  left_motor_speed(SERVO_BACKWARD);
-	  right_motor_speed(SERVO_BACKWARD);
-	  HAL_Delay(5000);
-	  left_motor_speed(SERVO_STOP);
-	  right_motor_speed(SERVO_STOP);
-	  HAL_Delay(5000);
-//	  switch (state){
-//	  case (navigation):
-//			  follow_line();
-//	  	  	  check_if_bullseye_crossed();
+//	  left_motor_speed(SERVO_FORWARD);
+//	  right_motor_speed(SERVO_FORWARD);
+//	  HAL_Delay(5000);
+//	  left_motor_speed(SERVO_STOP);
+//	  right_motor_speed(SERVO_STOP);
+//	  HAL_Delay(5000);
+//	  left_motor_speed(SERVO_BACKWARD);
+//	  right_motor_speed(SERVO_BACKWARD);
+//	  HAL_Delay(5000);
+//	  left_motor_speed(SERVO_STOP);
+//	  right_motor_speed(SERVO_STOP);
+//	  HAL_Delay(5000);
+	  switch (state){
+	  case (navigation):
+			  follow_line();
+	  	  	  //check_if_bullseye_crossed();
 //			  if (!return_to_start && legoman_pickedup){
 //				  state = found;
 //			  }
-//			  break;
-//	  case (found):
-//			  stop_and_approach();
-//	  	  	  grab_legoman();
-//	  	  	  if (legoman_pickedup && return_to_start){
-//	  	  		  state = search;
-//	  	  	  }
-//			  break;
-//	  case (search):
-//			  follow_line();
-//			  check_if_safezone_crossed();
-//			  //check_if_made_to_end();
-//			  if(!legoman_pickedup && return_to_start){
-//				  state = drop_continue;
-//			  } else if (!legoman_pickedup && !return_to_start) {
-//				  state = drop_end;
-//			  }
-//			  break;
-//	  case (drop_continue):
-//			  break;
-//	  case (drop_end):
-//			  break;
-//	  default:
-//		  break;
-//	  }
+			  break;
+	  case (found):
+			  stop_and_approach();
+	  	  	  grab_legoman();
+	  	  	  if (legoman_pickedup && return_to_start){
+	  	  		  state = search;
+	  	  	  }
+			  break;
+	  case (search):
+			  follow_line();
+			  check_if_safezone_crossed();
+			  //check_if_made_to_end();
+			  if(!legoman_pickedup && return_to_start){
+				  state = drop_continue;
+			  } else if (!legoman_pickedup && !return_to_start) {
+				  state = drop_end;
+			  }
+			  break;
+	  case (drop_continue):
+			  break;
+	  case (drop_end):
+			  break;
+	  default:
+		  break;
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -955,13 +962,15 @@ IMU_DATA read_imu_sensor(void){
 }
 bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
 	HAL_StatusTypeDef HAL_tcs_ret;
-	uint8_t cmd_buf[1];
+	uint8_t cmd_buf[2];
 
 	//power on sensor
 	cmd_buf[0] = TCS_COL_EN_REG;
-	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
-	cmd_buf[0] = TCS_COL_POWER_NO_WAIT;
-	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 1, TCS_I2C_DELAY);
+	cmd_buf[1] = TCS_COL_POWER_NO_WAIT;
+	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 2, TCS_I2C_DELAY);
+
+	//wait at least 2.4ms after first power on
+	HAL_Delay(3);
 
 	if (HAL_tcs_ret == HAL_OK){
 		return true;
@@ -975,10 +984,10 @@ TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
 	uint8_t cmd_buf[1];
 	uint8_t rec_buf[8];
 
-	int16_t tcs_read_clear = 0;
-	int16_t tcs_read_red = 0;
-	int16_t tcs_read_green = 0;
-	int16_t tcs_read_blue = 0;
+	uint16_t tcs_read_clear = 0;
+	uint16_t tcs_read_red = 0;
+	uint16_t tcs_read_green = 0;
+	uint16_t tcs_read_blue = 0;
 
 	volatile uint8_t tcs_status = 0;
 
@@ -1195,7 +1204,9 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
 
 	//check for max out of the optical channels
-	if (data.red > RED_THRESHOLD && data.red > data.blue && data.red > data.green){
+	if(data.red > BROWN_R_THRESHOLD && data.green > BROWN_G_THRESHOLD && data.blue < BROWN_B_THRESHOLD){
+		colour = brown;
+	} else if (data.red > RED_THRESHOLD && data.red > data.blue && data.red > data.green){
 		colour = red;
 	} else if (data.green > GREEN_THRESHOLD && data.green > data.red && data.green > data.blue){
 		colour = green;
@@ -1303,22 +1314,22 @@ DETECTED_COLOUR determine_as_colour(AS_COLOUR_DATA data){
 }
 void follow_line(void){
 	//read colour sensor front left
-	AS_COLOUR_DATA left_colour_data = read_as_colour_sensor(&hi2c1);
+	TCS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c2);
 	//read colour sensor from right
-	AS_COLOUR_DATA right_colour_data = read_as_colour_sensor(&hi2c2);
+	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	DETECTED_COLOUR left_colour = determine_as_colour(left_colour_data);
-	DETECTED_COLOUR right_colour = determine_as_colour(right_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
 
 	if (left_colour == red){
 		//turn robot slightly right
 		left_motor_speed(SERVO_STOP);
-		HAL_Delay(50);
+		HAL_Delay(LINE_TURN_TIME);
 		left_motor_speed(SERVO_FORWARD);
 	} else if (right_colour == red){
 		//turn robot slightly left
 		right_motor_speed(SERVO_STOP);
-		HAL_Delay(50);
+		HAL_Delay(LINE_TURN_TIME);
 		right_motor_speed(SERVO_FORWARD);
 	}
 }
