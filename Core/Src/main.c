@@ -172,13 +172,6 @@ bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
 TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c);
 bool setup_as_colour_sensor(I2C_HandleTypeDef * hi2c);
 AS_COLOUR_DATA read_as_colour_sensor(I2C_HandleTypeDef * hi2c);
-void start_motor_pwm(void);
-//time is how long actio is performed before stopping, 0 time is forever
-void ramp_up_motor_forward(uint32_t time);
-void ramp_up_motor_backward(uint32_t time);
-void motor_left_on_spot(uint32_t time);
-void motor_right_on_spot(uint32_t time);
-void motor_stop(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -227,18 +220,26 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  setup_as_colour_sensor(&hi2c1);
+  //setup_as_colour_sensor(&hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  as_colour_data = read_as_colour_sensor(&hi2c1);
-	  sprintf((char*)buf,
-			  "AS_NIR: %d\nAS_CLEAR: %d\nAS_F1(Purple): %d\nAS_F2(Navy): %d\nAS_F3(LBlue): %d\nAS_F4(Cyan): %d\n\r",
-			  as_colour_data.ADC_CH_5, as_colour_data.ADC_CH_4, as_colour_data.ADC_CH_0, as_colour_data.ADC_CH_1, as_colour_data.ADC_CH_2, as_colour_data.ADC_CH_3);
-	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  uint8_t cmd_buf[1];
+	  uint8_t rec_buf[1];
+
+	  HAL_StatusTypeDef HAL_as_ret;
+
+	  cmd_buf[0] = 0x92; //WHO_AM_I
+	  HAL_as_ret = HAL_I2C_Master_Transmit(&hi2c1, AS7341_ADDR, cmd_buf, 1, HAL_MAX_DELAY);
+	  HAL_as_ret = HAL_I2C_Master_Receive(&hi2c1, AS7341_ADDR, rec_buf, 1, AS_I2C_DELAY);
+	  //as_colour_data = read_as_colour_sensor(&hi2c1);
+//	  sprintf((char*)buf,
+//			  "AS_NIR: %d\nAS_CLEAR: %d\nAS_F1(Purple): %d\nAS_F2(Navy): %d\nAS_F3(LBlue): %d\nAS_F4(Cyan): %d\n\r",
+//			  as_colour_data.ADC_CH_5, as_colour_data.ADC_CH_4, as_colour_data.ADC_CH_0, as_colour_data.ADC_CH_1, as_colour_data.ADC_CH_2, as_colour_data.ADC_CH_3);
+//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	  HAL_Delay(2000);
     /* USER CODE END WHILE */
 
@@ -1178,118 +1179,6 @@ AS_COLOUR_DATA read_as_colour_sensor(I2C_HandleTypeDef * hi2c){
 	data.ADC_CH_5 = ((uint16_t)rec_buf[12] << 8) | rec_buf[11];
 
 	return data;
-}
-void start_motor_pwm(){
-	//motor left
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-
-	//motor right
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-}
-void motor_stop(){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
-
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_0PC);	//left
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_0PC);	//right
-
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_0PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_0PC);
-}
-void ramp_up_motor_forward(uint32_t time){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
-	}
-	HAL_Delay(time);
-	motor_stop();
-}
-void ramp_up_motor_backward(uint32_t time){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
-	}
-	HAL_Delay(time);
-	motor_stop();
-}
-void motor_left_on_spot(uint32_t time){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
-	}
-	HAL_Delay(time);
-	motor_stop();
-}
-void motor_right_on_spot(uint32_t time){
-	//enable
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_25PC);	//left
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_25PC);	//right
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_50PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_50PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_75PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_75PC);
-	HAL_Delay(RAMP_DELAY);
-	__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, MOTOR_100PC);
-	__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, MOTOR_100PC);
-
-	if (time == 0) {
-		return;
-	}
-	HAL_Delay(time);
-	motor_stop();
 }
 /* USER CODE END 4 */
 
