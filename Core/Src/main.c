@@ -146,6 +146,14 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 
 #define MOTOR_RAMP_DELAY 50
 
+#define SERVO_FORWARD 180
+#define SERVO_BACKWARD 0
+#define SERVO_STOP 90
+
+#define SERVO_MAX_PULSE 26
+#define SERVO_NEUTRAL_PULSE 19
+#define SERVO_MIN_PULSE 13
+
 //#define determine_colour(x) _Generic((x),\
 //									TCS_COLOUR_DATA: determine_tcs_colour,\
 //									AS_COLOUR_DATA: determine_as_colour)(x)
@@ -172,7 +180,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint16_t adc_buf[ADC_BUF_LEN];
-static const uint8_t ICM20948_ADDR = (0x68 << 1);
+static const uint8_t ICM20948_ADDR = (0x69 << 1);
 static const uint8_t AK09916_ADDR = (0x0C << 1);
 static const uint8_t TCS34725_ADDR = (0x29 << 1);
 static const uint8_t AS7341_ADDR = (0x39 << 1);
@@ -1293,6 +1301,14 @@ void start_motor_pwm(){
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 }
 void left_motor_speed(int speed){
+	if(speed == SERVO_FORWARD){
+			__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, SERVO_MAX_PULSE);
+		} else if (speed == SERVO_BACKWARD){
+			__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, SERVO_MIN_PULSE);
+		} else {
+			__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, SERVO_NEUTRAL_PULSE);
+	}
+	/*
 	//enable
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 	if (speed >= 0){
@@ -1304,8 +1320,17 @@ void left_motor_speed(int speed){
 	} else {
 		__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_1, abs(speed));	//left backward
 	}
+	*/
 }
 void right_motor_speed(int speed){
+	if(speed == SERVO_FORWARD){
+		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, SERVO_MAX_PULSE);
+	} else if (speed == SERVO_BACKWARD){
+		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, SERVO_MIN_PULSE);
+	} else {
+		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, SERVO_NEUTRAL_PULSE);
+	}
+	/*
 	//enable
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 	if (speed >= 0){
@@ -1317,6 +1342,7 @@ void right_motor_speed(int speed){
 	} else {
 		__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, speed);	//right backward
 	}
+	*/
 }
 DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
@@ -1428,14 +1454,14 @@ void follow_line(void){
 
 	if (left_colour == red){
 		//turn robot slightly right
-		left_motor_speed(left_motor_curr_speed - 50);
+		left_motor_speed(SERVO_STOP);
 		HAL_Delay(50);
-		left_motor_speed(left_motor_curr_speed + 50);
+		left_motor_speed(SERVO_FORWARD);
 	} else if (right_colour == red){
 		//turn robot slightly left
-		right_motor_speed(right_motor_curr_speed - 50);
+		right_motor_speed(SERVO_STOP);
 		HAL_Delay(50);
-		right_motor_speed(right_motor_curr_speed + 50);
+		right_motor_speed(SERVO_FORWARD);
 	}
 }
 void check_if_bullseye_crossed(void){
