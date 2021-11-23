@@ -310,12 +310,16 @@ int main(void)
   while (1)
   {
 	  left_motor_speed(SERVO_FORWARD);
+	  right_motor_speed(SERVO_FORWARD);
 	  HAL_Delay(5000);
 	  left_motor_speed(SERVO_STOP);
+	  right_motor_speed(SERVO_STOP);
 	  HAL_Delay(5000);
 	  left_motor_speed(SERVO_BACKWARD);
+	  right_motor_speed(SERVO_BACKWARD);
 	  HAL_Delay(5000);
 	  left_motor_speed(SERVO_STOP);
+	  right_motor_speed(SERVO_STOP);
 	  HAL_Delay(5000);
 //	  switch (state){
 //	  case (navigation):
