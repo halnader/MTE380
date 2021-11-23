@@ -338,7 +338,7 @@ int main(void)
 	  case (search):
 			  follow_line();
 			  check_if_safezone_crossed();
-			  check_if_made_to_end();
+			  //check_if_made_to_end();
 			  if(!legoman_pickedup && return_to_start){
 				  state = drop_continue;
 			  } else if (!legoman_pickedup && !return_to_start) {
@@ -1297,16 +1297,16 @@ void start_motor_pwm(){
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
 	//motor right
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+	//HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 }
 void left_motor_speed(int speed){
 	if(speed == SERVO_FORWARD){
-			__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, SERVO_MAX_PULSE);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_MAX_PULSE);
 		} else if (speed == SERVO_BACKWARD){
-			__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, SERVO_MIN_PULSE);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_MIN_PULSE);
 		} else {
-			__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_1, SERVO_NEUTRAL_PULSE);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_NEUTRAL_PULSE);
 	}
 	/*
 	//enable
@@ -1324,11 +1324,11 @@ void left_motor_speed(int speed){
 }
 void right_motor_speed(int speed){
 	if(speed == SERVO_FORWARD){
-		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, SERVO_MAX_PULSE);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, SERVO_MAX_PULSE);
 	} else if (speed == SERVO_BACKWARD){
-		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, SERVO_MIN_PULSE);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, SERVO_MIN_PULSE);
 	} else {
-		__HAL_TIM_SET_COMPARE(htim3, TIM_CHANNEL_2, SERVO_NEUTRAL_PULSE);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, SERVO_NEUTRAL_PULSE);
 	}
 	/*
 	//enable
@@ -1508,18 +1508,18 @@ void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colou
 	  HAL_Delay(2000);
 }
 void stop_and_approach(void){
-	left_motor_speed(0);
-	right_motor_speed(0);
+	left_motor_speed(SERVO_STOP);
+	right_motor_speed(SERVO_STOP);
 
 	//slow ramp up
-	left_motor_speed(50);
-	right_motor_speed(50);
-	HAL_Delay(MOTOR_RAMP_DELAY);
-	left_motor_speed(100);
-	right_motor_speed(100);
-	HAL_Delay(MOTOR_RAMP_DELAY);
-	left_motor_speed(150);
-	right_motor_speed(150);
+	left_motor_speed(SERVO_FORWARD);
+	right_motor_speed(SERVO_FORWARD);
+//	HAL_Delay(MOTOR_RAMP_DELAY);
+//	left_motor_speed(100);
+//	right_motor_speed(100);
+//	HAL_Delay(MOTOR_RAMP_DELAY);
+//	left_motor_speed(150);
+//	right_motor_speed(150);
 	//read colour sensor front left
 	AS_COLOUR_DATA left_colour_data = read_as_colour_sensor(&hi2c1);
 	//read colour sensor from right
@@ -1538,20 +1538,20 @@ void stop_and_approach(void){
 	}
 
 	//stop again
-	left_motor_speed(0);
-	right_motor_speed(0);
+	left_motor_speed(SERVO_STOP);
+	right_motor_speed(SERVO_STOP);
 }
 void grab_legoman(void){
 	//close grip
 
 	//drive back
-	left_motor_speed(-100);
-	right_motor_speed(-100);
+	left_motor_speed(SERVO_BACKWARD);
+	right_motor_speed(SERVO_BACKWARD);
 	HAL_Delay(500);
 
 	//turn in place until right, then left colour sensors detect red
-	left_motor_speed(100);
-	right_motor_speed(-100);
+	left_motor_speed(SERVO_FORWARD);
+	right_motor_speed(SERVO_BACKWARD);
 
 	//read colour sensor from right
 	AS_COLOUR_DATA right_colour_data = read_as_colour_sensor(&hi2c2);
@@ -1572,8 +1572,8 @@ void grab_legoman(void){
 		left_colour = determine_as_colour(left_colour_data);
 	}
 
-	left_motor_speed(0);
-	right_motor_speed(0);
+	left_motor_speed(SERVO_STOP);
+	right_motor_speed(SERVO_STOP);
 
 	legoman_pickedup = true;
 }
