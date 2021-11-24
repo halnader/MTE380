@@ -155,7 +155,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_STOP 90
 
 #define SERVO_MAX_PULSE 400
-#define SERVO_NEUTRAL_PULSE 305
+#define SERVO_NEUTRAL_PULSE 303
 #define SERVO_MIN_PULSE 200
 
 /* USER CODE END PD */
@@ -316,15 +316,19 @@ int main(void)
   while (1)
   {
 	  left_motor_speed(SERVO_FORWARD);
+	  HAL_Delay(500);
 	  right_motor_speed(SERVO_FORWARD);
 	  HAL_Delay(5000);
 	  left_motor_speed(SERVO_STOP);
+	  HAL_Delay(500);
 	  right_motor_speed(SERVO_STOP);
 	  HAL_Delay(5000);
 	  left_motor_speed(SERVO_BACKWARD);
+	  HAL_Delay(500);
 	  right_motor_speed(SERVO_BACKWARD);
 	  HAL_Delay(5000);
 	  left_motor_speed(SERVO_STOP);
+	  HAL_Delay(500);
 	  right_motor_speed(SERVO_STOP);
 	  HAL_Delay(5000);
 //	  switch (state){
