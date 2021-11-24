@@ -1172,9 +1172,9 @@ void left_motor_speed(int speed){
 }
 void right_motor_speed(int speed){
 	if(speed == SERVO_FORWARD){
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_MAX_PULSE);
-	} else if (speed == SERVO_BACKWARD){
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_MIN_PULSE);
+	} else if (speed == SERVO_BACKWARD){
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_MAX_PULSE);
 	} else {
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_NEUTRAL_PULSE);
 	}
