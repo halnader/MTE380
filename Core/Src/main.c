@@ -146,12 +146,30 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 
 //----------------------------CONFIG----------------------------------
 //colour detection thresholds
-#define RED_THRESHOLD 10000
-#define GREEN_THRESHOLD 10000
-#define BLUE_THRESHOLD 10000
-#define BROWN_R_THRESHOLD 10000
-#define BROWN_G_THRESHOLD 10000
-#define BROWN_B_THRESHOLD 10000
+#define RClearH 0
+#define RClearL 0
+#define GClearH 0
+#define GClearL 0
+#define BClearH 0
+#define BClearL 0
+#define BrClearH 0
+#define BrClearL 0
+
+#define REDH_THRESHOLD 16000
+#define REDL_THRESHOLD 12800
+
+#define GREENH_THRESHOLD 17500
+#define GREENL_THRESHOLD 13200
+
+#define BLUEH_THRESHOLD 18000
+#define BLUEL_THRESHOLD 15000
+
+#define BROWNH_R_THRESHOLD 19000
+#define BROWNL_R_THRESHOLD 17000
+#define BROWNH_G_THRESHOLD 17500
+#define BROWNL_G_THRESHOLD 16000
+#define BROWNH_B_THRESHOLD 13000
+#define BROWNL_B_THRESHOLD 12400
 
 #define SERVO_FORWARD 180
 #define SERVO_BACKWARD 0
@@ -306,39 +324,43 @@ int main(void)
 //  //place front left over brown
 //  calibrate_as_colour_sensor(&hi2c2, brown);
 
-  //Step 3: calibrate front right
-  //place back right over red
-  strcpy((char*)buf, "Calibrate Front Right (Red)\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c1, red);
-  //place back right over green
-  strcpy((char*)buf, "Calibrate Front Right (Green)\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c1, green);
-  //place back right over blue
-  strcpy((char*)buf, "Calibrate Front Right (Blue)\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c1, blue);
-  strcpy((char*)buf, "Calibrate Front Right (Brown)\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c1, brown);
+//  //Step 3: calibrate front right
+//  //place back right over red
+//  strcpy((char*)buf, "Calibrate Front Right (Red)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c1, red);
+//  //place back right over green
+//  strcpy((char*)buf, "Calibrate Front Right (Green)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c1, green);
+//  //place back right over blue
+//  strcpy((char*)buf, "Calibrate Front Right (Blue)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c1, blue);
+//  strcpy((char*)buf, "Calibrate Front Right (Brown)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c1, brown);
+//
+//  //Step 4: calibrate front left
+//  //place back left over red
+//  strcpy((char*)buf, "Calibrate Front Left (Red)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c2, red);
+//  //place back left over green
+//  strcpy((char*)buf, "Calibrate Front Left (Green)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c2, green);
+//  //place back left over blue
+//  strcpy((char*)buf, "Calibrate Front Left (Blue)\n\r");
+//   HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c2, blue);
+//  strcpy((char*)buf, "Calibrate Front Left (Brown)\n\r");
+//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//  calibrate_tcs_colour_sensor(&hi2c2, brown);
 
-  //Step 4: calibrate front left
-  //place back left over red
-  strcpy((char*)buf, "Calibrate Front Left (Red)\n\r");
+  strcpy((char*)buf, "Press Button to start Driving\n\r");
   HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c2, red);
-  //place back left over green
-  strcpy((char*)buf, "Calibrate Front Left (Green)\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c2, green);
-  //place back left over blue
-  strcpy((char*)buf, "Calibrate Front Left (Blue)\n\r");
-   HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c2, blue);
-  strcpy((char*)buf, "Calibrate Front Left (Brown)\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-  calibrate_tcs_colour_sensor(&hi2c2, brown);
+
   while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
 	  //wait until button pushed
   }
@@ -1246,53 +1268,69 @@ void gripper_motor_position(int pos){
 DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
 
-//	//check for max out of the optical channels
-//	if(data.red > BROWN_R_THRESHOLD && data.green > BROWN_G_THRESHOLD && data.blue < BROWN_B_THRESHOLD){
-//		colour = brown;
-//	} else if (data.red > RED_THRESHOLD && data.red > data.blue && data.red > data.green){
-//		colour = red;
-//	} else if (data.green > GREEN_THRESHOLD && data.green > data.red && data.green > data.blue){
-//		colour = green;
-//	} else if (data.blue > BLUE_THRESHOLD && data.blue > data.red && data.blue > data.green){
-//		colour = blue;
-//	}
+	//check for max out of the optical channels
+	if(data.red > BROWNL_R_THRESHOLD &&
+			data.red < BROWNH_R_THRESHOLD &&
 
-	if (data.clear < tcs_calibration_data[red]._clear + TCS_COLOUR_TOLERANCE &&
-		data.clear > tcs_calibration_data[red]._clear - TCS_COLOUR_TOLERANCE &&
-		data.red < tcs_calibration_data[red]._red + TCS_COLOUR_TOLERANCE &&
-		data.red > tcs_calibration_data[red]._red - TCS_COLOUR_TOLERANCE &&
-		data.green < tcs_calibration_data[red]._green + TCS_COLOUR_TOLERANCE &&
-		data.green > tcs_calibration_data[red]._green - TCS_COLOUR_TOLERANCE &&
-		data.blue < tcs_calibration_data[red]._blue + TCS_COLOUR_TOLERANCE &&
-		data.blue > tcs_calibration_data[red]._blue - TCS_COLOUR_TOLERANCE)
-		colour = red;
-	else if (data.clear < tcs_calibration_data[green]._clear + TCS_COLOUR_TOLERANCE &&
-		data.clear > tcs_calibration_data[green]._clear - TCS_COLOUR_TOLERANCE &&
-		data.red < tcs_calibration_data[green]._red + TCS_COLOUR_TOLERANCE &&
-		data.red > tcs_calibration_data[green]._red - TCS_COLOUR_TOLERANCE &&
-		data.green < tcs_calibration_data[green]._green + TCS_COLOUR_TOLERANCE &&
-		data.green > tcs_calibration_data[green]._green - TCS_COLOUR_TOLERANCE &&
-		data.blue < tcs_calibration_data[green]._blue + TCS_COLOUR_TOLERANCE &&
-		data.blue > tcs_calibration_data[green]._blue - TCS_COLOUR_TOLERANCE)
-		colour = green;
-	else if (data.clear < tcs_calibration_data[blue]._clear + TCS_COLOUR_TOLERANCE &&
-		data.clear > tcs_calibration_data[blue]._clear - TCS_COLOUR_TOLERANCE &&
-		data.red < tcs_calibration_data[blue]._red + TCS_COLOUR_TOLERANCE &&
-		data.red > tcs_calibration_data[blue]._red - TCS_COLOUR_TOLERANCE &&
-		data.green < tcs_calibration_data[blue]._green + TCS_COLOUR_TOLERANCE &&
-		data.green > tcs_calibration_data[blue]._green - TCS_COLOUR_TOLERANCE &&
-		data.blue < tcs_calibration_data[blue]._blue + TCS_COLOUR_TOLERANCE &&
-		data.blue > tcs_calibration_data[blue]._blue - TCS_COLOUR_TOLERANCE)
-		colour = blue;
-	else if (data.clear < tcs_calibration_data[brown]._clear + TCS_COLOUR_TOLERANCE &&
-		data.clear > tcs_calibration_data[brown]._clear - TCS_COLOUR_TOLERANCE &&
-		data.red < tcs_calibration_data[brown]._red + TCS_COLOUR_TOLERANCE &&
-		data.red > tcs_calibration_data[brown]._red - TCS_COLOUR_TOLERANCE &&
-		data.green < tcs_calibration_data[brown]._green + TCS_COLOUR_TOLERANCE &&
-		data.green > tcs_calibration_data[brown]._green - TCS_COLOUR_TOLERANCE &&
-		data.blue < tcs_calibration_data[brown]._blue + TCS_COLOUR_TOLERANCE &&
-		data.blue > tcs_calibration_data[brown]._blue - TCS_COLOUR_TOLERANCE)
+			data.green > BROWNL_G_THRESHOLD &&
+			data.green < BROWNH_G_THRESHOLD &&
+
+			data.blue > BROWNL_B_THRESHOLD &&
+			data.blue < BROWNH_B_THRESHOLD){
 		colour = brown;
+	} else if (data.red > REDL_THRESHOLD &&
+			data.red < REDH_THRESHOLD &&
+			data.red > data.blue &&
+			data.red > data.green){
+		colour = red;
+	} else if (data.green > GREENL_THRESHOLD &&
+			data.green < GREENH_THRESHOLD &&
+			data.green > data.red &&
+			data.green > data.blue){
+		colour = green;
+	} else if (data.blue > BLUEL_THRESHOLD &&
+			data.blue < BLUEH_THRESHOLD &&
+			data.blue > data.red &&
+			data.blue > data.green){
+		colour = blue;
+	}
+
+//	if (data.clear < tcs_calibration_data[red]._clear + TCS_COLOUR_TOLERANCE &&
+//		data.clear > tcs_calibration_data[red]._clear - TCS_COLOUR_TOLERANCE &&
+//		data.red < tcs_calibration_data[red]._red + TCS_COLOUR_TOLERANCE &&
+//		data.red > tcs_calibration_data[red]._red - TCS_COLOUR_TOLERANCE &&
+//		data.green < tcs_calibration_data[red]._green + TCS_COLOUR_TOLERANCE &&
+//		data.green > tcs_calibration_data[red]._green - TCS_COLOUR_TOLERANCE &&
+//		data.blue < tcs_calibration_data[red]._blue + TCS_COLOUR_TOLERANCE &&
+//		data.blue > tcs_calibration_data[red]._blue - TCS_COLOUR_TOLERANCE)
+//		colour = red;
+//	else if (data.clear < tcs_calibration_data[green]._clear + TCS_COLOUR_TOLERANCE &&
+//		data.clear > tcs_calibration_data[green]._clear - TCS_COLOUR_TOLERANCE &&
+//		data.red < tcs_calibration_data[green]._red + TCS_COLOUR_TOLERANCE &&
+//		data.red > tcs_calibration_data[green]._red - TCS_COLOUR_TOLERANCE &&
+//		data.green < tcs_calibration_data[green]._green + TCS_COLOUR_TOLERANCE &&
+//		data.green > tcs_calibration_data[green]._green - TCS_COLOUR_TOLERANCE &&
+//		data.blue < tcs_calibration_data[green]._blue + TCS_COLOUR_TOLERANCE &&
+//		data.blue > tcs_calibration_data[green]._blue - TCS_COLOUR_TOLERANCE)
+//		colour = green;
+//	else if (data.clear < tcs_calibration_data[blue]._clear + TCS_COLOUR_TOLERANCE &&
+//		data.clear > tcs_calibration_data[blue]._clear - TCS_COLOUR_TOLERANCE &&
+//		data.red < tcs_calibration_data[blue]._red + TCS_COLOUR_TOLERANCE &&
+//		data.red > tcs_calibration_data[blue]._red - TCS_COLOUR_TOLERANCE &&
+//		data.green < tcs_calibration_data[blue]._green + TCS_COLOUR_TOLERANCE &&
+//		data.green > tcs_calibration_data[blue]._green - TCS_COLOUR_TOLERANCE &&
+//		data.blue < tcs_calibration_data[blue]._blue + TCS_COLOUR_TOLERANCE &&
+//		data.blue > tcs_calibration_data[blue]._blue - TCS_COLOUR_TOLERANCE)
+//		colour = blue;
+//	else if (data.clear < tcs_calibration_data[brown]._clear + TCS_COLOUR_TOLERANCE &&
+//		data.clear > tcs_calibration_data[brown]._clear - TCS_COLOUR_TOLERANCE &&
+//		data.red < tcs_calibration_data[brown]._red + TCS_COLOUR_TOLERANCE &&
+//		data.red > tcs_calibration_data[brown]._red - TCS_COLOUR_TOLERANCE &&
+//		data.green < tcs_calibration_data[brown]._green + TCS_COLOUR_TOLERANCE &&
+//		data.green > tcs_calibration_data[brown]._green - TCS_COLOUR_TOLERANCE &&
+//		data.blue < tcs_calibration_data[brown]._blue + TCS_COLOUR_TOLERANCE &&
+//		data.blue > tcs_calibration_data[brown]._blue - TCS_COLOUR_TOLERANCE)
+//		colour = brown;
 
 	return colour;
 }
@@ -1360,7 +1398,7 @@ void follow_line(void){
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	sprintf((char*)buf, "LRC: %d | %d\nLRRed: %d | %d\nLRGre: %d | %d\nLRBlu: %d | %d\n\r",
+	sprintf((char*)buf, "LRC: %d | %d\n\rLRRed: %d | %d\n\rLRGre: %d | %d\n\rLRBlu: %d | %d\n\r",
 			left_colour_data.clear, right_colour_data.clear,
 			left_colour_data.red, right_colour_data.red,
 			left_colour_data.green, right_colour_data.green,
@@ -1507,7 +1545,7 @@ void grab_legoman(void){
 	//drive back
 	left_motor_speed(SERVO_BACKWARD);
 	right_motor_speed(SERVO_BACKWARD);
-	HAL_Delay(500);
+	HAL_Delay(1000);
 
 	//turn in place until right, then left colour sensors detect red
 	left_motor_speed(SERVO_FORWARD);
