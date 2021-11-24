@@ -176,6 +176,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_STOP 90
 
 #define SERVO_180 180
+#define SERVO_45 45
 #define SERVO_0 0
 #define SERVO_90 90
 
@@ -188,6 +189,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVOG_MAX_PULSE 400
 #define SERVOG_NEUTRAL_PULSE 300
 #define SERVOG_MIN_PULSE 200
+#define SERVOG_45_PULSE 250
 
 //line following, higher number, sharper turns
 #define LINE_TURN_TIME 100
@@ -365,8 +367,8 @@ int main(void)
 	  //wait until button pushed
   }
 
-  left_motor_speed(SERVO_FORWARD);
-  right_motor_speed(SERVO_FORWARD);
+//  left_motor_speed(SERVO_FORWARD);
+//  right_motor_speed(SERVO_FORWARD);
 
   //gripper test
 //  gripper_motor_position(SERVO_0);
@@ -384,39 +386,57 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  strcpy((char*)buf, "Press to close Jaw...\n\r");
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+	  	  //wait until button pushed
+	   }
+	  gripper_motor_position(SERVO_0);
+	  strcpy((char*)buf, "Press to 45 degrees Jaw...\n\r");
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+		  //wait until button pushed
+	   }
+	  gripper_motor_position(SERVO_45);
+//	  strcpy((char*)buf, "Press to 90 degrees Jaw...\n\r");
+//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+//		  //wait until button pushed
+//	   }
+//	  gripper_motor_position(SERVO_90);
 
-	  switch (state){
-	  case (navigation):
-			  follow_line();
-	  	  	  check_if_bullseye_crossed();
-			  if (!return_to_start && legoman_pickedup){
-				  state = found;
-			  }
-			  break;
-	  case (found):
-			  stop_and_approach();
-	  	  	  grab_legoman();
-	  	  	  if (legoman_pickedup && return_to_start){
-	  	  		  state = search;
-	  	  	  }
-			  break;
-	  case (search):
-			  follow_line();
-			  check_if_safezone_crossed();
-			  //check_if_made_to_end();
-			  if(!legoman_pickedup && return_to_start){
-				  state = drop_continue;
-			  } else if (!legoman_pickedup && !return_to_start) {
-				  state = drop_end;
-			  }
-			  break;
-	  case (drop_continue):
-			  break;
-	  case (drop_end):
-			  break;
-	  default:
-		  break;
-	  }
+//	  switch (state){
+//	  case (navigation):
+//			  follow_line();
+//	  	  	  check_if_bullseye_crossed();
+//			  if (!return_to_start && legoman_pickedup){
+//				  state = found;
+//			  }
+//			  break;
+//	  case (found):
+//			  stop_and_approach();
+//	  	  	  grab_legoman();
+//	  	  	  if (legoman_pickedup && return_to_start){
+//	  	  		  state = search;
+//	  	  	  }
+//			  break;
+//	  case (search):
+//			  follow_line();
+//			  check_if_safezone_crossed();
+//			  //check_if_made_to_end();
+//			  if(!legoman_pickedup && return_to_start){
+//				  state = drop_continue;
+//			  } else if (!legoman_pickedup && !return_to_start) {
+//				  state = drop_end;
+//			  }
+//			  break;
+//	  case (drop_continue):
+//			  break;
+//	  case (drop_end):
+//			  break;
+//	  default:
+//		  break;
+//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -1261,9 +1281,12 @@ void gripper_motor_position(int pos){
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_MAX_PULSE);
 	} else if (pos == SERVO_90){
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_NEUTRAL_PULSE);
+	} else if (pos == SERVO_45){
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_45_PULSE);
 	} else {
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_MIN_PULSE);
 	}
+
 }
 DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
