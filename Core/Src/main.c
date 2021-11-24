@@ -149,9 +149,9 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define RED_THRESHOLD 10000
 #define GREEN_THRESHOLD 10000
 #define BLUE_THRESHOLD 10000
-#define BROWN_R_THRESHOLD 19000
-#define BROWN_G_THRESHOLD 19000
-#define BROWN_B_THRESHOLD 15000
+#define BROWN_R_THRESHOLD 10000
+#define BROWN_G_THRESHOLD 10000
+#define BROWN_B_THRESHOLD 10000
 
 #define SERVO_FORWARD 180
 #define SERVO_BACKWARD 0
@@ -159,11 +159,11 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 
 //max pulse for forward driving, neutral for stop, min for back
 #define SERVO_MAX_PULSE 400
-#define SERVO_NEUTRAL_PULSE 305
+#define SERVO_NEUTRAL_PULSE 303
 #define SERVO_MIN_PULSE 200
 
 //line following, higher number, sharper turns
-#define LINE_TURN_TIME 150
+#define LINE_TURN_TIME 100
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -1150,9 +1150,9 @@ void start_motor_pwm(){
 }
 void left_motor_speed(int speed){
 	if(speed == SERVO_FORWARD){
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_MIN_PULSE);
-		} else if (speed == SERVO_BACKWARD){
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_MAX_PULSE);
+		} else if (speed == SERVO_BACKWARD){
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_MIN_PULSE);
 		} else {
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_NEUTRAL_PULSE);
 	}
@@ -1172,9 +1172,9 @@ void left_motor_speed(int speed){
 }
 void right_motor_speed(int speed){
 	if(speed == SERVO_FORWARD){
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_MAX_PULSE);
-	} else if (speed == SERVO_BACKWARD){
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_MIN_PULSE);
+	} else if (speed == SERVO_BACKWARD){
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_MAX_PULSE);
 	} else {
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, SERVO_NEUTRAL_PULSE);
 	}
@@ -1310,10 +1310,10 @@ void follow_line(void){
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	sprintf((char*)buf, "Left - C: %d Red: %d Green: %d Blue: %d\n\r", left_colour_data.clear, left_colour_data.red, left_colour_data.green, left_colour_data.blue);
-	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-	sprintf((char*)buf, "Right - C: %d Red: %d Green: %d Blue: %d\n\r", right_colour_data.clear, right_colour_data.red, right_colour_data.green, right_colour_data.blue);
-	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	//sprintf((char*)buf, "Left - C: %d Red: %d Green: %d Blue: %d\n\r", left_colour_data.clear, left_colour_data.red, left_colour_data.green, left_colour_data.blue);
+	//HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	//sprintf((char*)buf, "Right - C: %d Red: %d Green: %d Blue: %d\n\r", right_colour_data.clear, right_colour_data.red, right_colour_data.green, right_colour_data.blue);
+	//HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 
 	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
 	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
@@ -1325,29 +1325,33 @@ void follow_line(void){
 	sprintf(right_str, "error");
 
 	if (left_colour == red){
-		//turn robot slightly right
+		//turn robot slightly left
 		left_motor_speed(SERVO_STOP);
 		HAL_Delay(LINE_TURN_TIME);
 		left_motor_speed(SERVO_FORWARD);
-		sprintf(left_str, "red");
 	} else if (right_colour == red){
-		//turn robot slightly left
+		//turn robot slightly right
 		right_motor_speed(SERVO_STOP);
 		HAL_Delay(LINE_TURN_TIME);
 		right_motor_speed(SERVO_FORWARD);
-		sprintf(right_str, "red");
-	} else if (left_colour == green){
+	}
+	if (left_colour == green){
 		sprintf(left_str, "green");
 	} else if (left_colour == blue){
 		sprintf(left_str, "blue");
 	}else if (left_colour == brown){
 		sprintf(left_str, "brown");
-	}else if (right_colour == green){
+	} else if (left_str, "red"){
+		sprintf(left_str, "red");
+	}
+	if (right_colour == green){
 		sprintf(right_str, "green");
 	}else if (right_colour == blue){
 		sprintf(right_str, "blue");
 	}else if (right_colour == brown){
 		sprintf(right_str, "brown");
+	} else if (right_str, "red"){
+		sprintf(right_str, "red");
 	}
 	sprintf((char*)buf,
 				  "Left: %s \tRight: %s\n\r",
