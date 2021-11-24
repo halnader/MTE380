@@ -1310,9 +1310,9 @@ void follow_line(void){
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	sprintf((char*)buf, "Left - C: %d\nRed: %d\nGreen: %d\nBlue: %d\n\r", left_colour_data.clear, left_colour_data.red, left_colour_data.green, left_colour_data.blue);
+	sprintf((char*)buf, "Left - C: %d Red: %d Green: %d Blue: %d\n\r", left_colour_data.clear, left_colour_data.red, left_colour_data.green, left_colour_data.blue);
 	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-	sprintf((char*)buf, "Right - C: %d\nRed: %d\nGreen: %d\nBlue: %d\n\r", right_colour_data.clear, right_colour_data.red, right_colour_data.green, right_colour_data.blue);
+	sprintf((char*)buf, "Right - C: %d Red: %d Green: %d Blue: %d\n\r", right_colour_data.clear, right_colour_data.red, right_colour_data.green, right_colour_data.blue);
 	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 
 	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
