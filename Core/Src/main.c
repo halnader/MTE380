@@ -163,7 +163,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_MIN_PULSE 200
 
 //line following, higher number, sharper turns
-#define LINE_TURN_TIME 50
+#define LINE_TURN_TIME 150
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
