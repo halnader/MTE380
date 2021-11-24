@@ -1313,17 +1313,38 @@ void follow_line(void){
 	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
 	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
 
+	char left_str[5];
+	char right_str[5];
+
 	if (left_colour == red){
 		//turn robot slightly right
 		left_motor_speed(SERVO_STOP);
 		HAL_Delay(LINE_TURN_TIME);
 		left_motor_speed(SERVO_FORWARD);
+		sprintf(left_str, "red");
 	} else if (right_colour == red){
 		//turn robot slightly left
 		right_motor_speed(SERVO_STOP);
 		HAL_Delay(LINE_TURN_TIME);
 		right_motor_speed(SERVO_FORWARD);
+		sprintf(right_str, "red");
+	} else if (left_colour == green){
+		sprintf(left_str, "green");
+	} else if (left_colour == blue){
+		sprintf(left_str, "blue");
+	}else if (left_colour == brown){
+		sprintf(left_str, "brown");
+	}else if (right_colour == green){
+		sprintf(right_str, "green");
+	}else if (right_colour == blue){
+		sprintf(right_str, "blue");
+	}else if (right_colour == brown){
+		sprintf(right_str, "brown");
 	}
+	sprintf((char*)buf,
+				  "Left: %s \tRight: %s\n\r",
+				  left_str, right_str);
+	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 }
 void check_if_bullseye_crossed(void){
 	//read colour sensor front left
