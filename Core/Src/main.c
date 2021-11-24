@@ -326,46 +326,12 @@ int main(void)
 //  //place front left over brown
 //  calibrate_as_colour_sensor(&hi2c2, brown);
 
-//  //Step 3: calibrate front right
-//  //place back right over red
-//  strcpy((char*)buf, "Calibrate Front Right (Red)\n\r");
+//  strcpy((char*)buf, "Press Button to start Driving\n\r");
 //  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c1, red);
-//  //place back right over green
-//  strcpy((char*)buf, "Calibrate Front Right (Green)\n\r");
-//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c1, green);
-//  //place back right over blue
-//  strcpy((char*)buf, "Calibrate Front Right (Blue)\n\r");
-//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c1, blue);
-//  strcpy((char*)buf, "Calibrate Front Right (Brown)\n\r");
-//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c1, brown);
 //
-//  //Step 4: calibrate front left
-//  //place back left over red
-//  strcpy((char*)buf, "Calibrate Front Left (Red)\n\r");
-//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c2, red);
-//  //place back left over green
-//  strcpy((char*)buf, "Calibrate Front Left (Green)\n\r");
-//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c2, green);
-//  //place back left over blue
-//  strcpy((char*)buf, "Calibrate Front Left (Blue)\n\r");
-//   HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c2, blue);
-//  strcpy((char*)buf, "Calibrate Front Left (Brown)\n\r");
-//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//  calibrate_tcs_colour_sensor(&hi2c2, brown);
-
-  strcpy((char*)buf, "Press Button to start Driving\n\r");
-  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-
-  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
-	  //wait until button pushed
-  }
+//  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+//	  //wait until button pushed
+//  }
 
 //  left_motor_speed(SERVO_FORWARD);
 //  right_motor_speed(SERVO_FORWARD);
@@ -386,27 +352,61 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  strcpy((char*)buf, "Press to close Jaw...\n\r");
+	  //Step 3: calibrate front right
+	  //place back right over red
+	  strcpy((char*)buf, "Calibrate Front Right (Red)\n\r");
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
-	  	  //wait until button pushed
-	   }
-	  HAL_Delay(2000);
-	  gripper_motor_position(SERVO_0);
-	  strcpy((char*)buf, "Press to 45 degrees Jaw...\n\r");
+	  calibrate_tcs_colour_sensor(&hi2c1, red);
+	  //place back right over green
+	//  strcpy((char*)buf, "Calibrate Front Right (Green)\n\r");
+	//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	//  calibrate_tcs_colour_sensor(&hi2c1, green);
+	//  //place back right over blue
+	//  strcpy((char*)buf, "Calibrate Front Right (Blue)\n\r");
+	//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	//  calibrate_tcs_colour_sensor(&hi2c1, blue);
+	  strcpy((char*)buf, "Calibrate Front Right (Brown)\n\r");
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
-		  //wait until button pushed
-	   }
-	  gripper_motor_position(SERVO_45);
-	  HAL_Delay(2000);
-	  strcpy((char*)buf, "Press to 90 degrees Jaw...\n\r");
+	  calibrate_tcs_colour_sensor(&hi2c1, brown);
+
+	  //Step 4: calibrate front left
+	  //place back left over red
+	  strcpy((char*)buf, "Calibrate Front Left (Red)\n\r");
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
-		  //wait until button pushed
-	   }
-	  gripper_motor_position(SERVO_90);
-	  HAL_Delay(2000);
+	  calibrate_tcs_colour_sensor(&hi2c2, red);
+	  //place back left over green
+	//  strcpy((char*)buf, "Calibrate Front Left (Green)\n\r");
+	//  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	//  calibrate_tcs_colour_sensor(&hi2c2, green);
+	//  //place back left over blue
+	//  strcpy((char*)buf, "Calibrate Front Left (Blue)\n\r");
+	//   HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	//  calibrate_tcs_colour_sensor(&hi2c2, blue);
+	  strcpy((char*)buf, "Calibrate Front Left (Brown)\n\r");
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  calibrate_tcs_colour_sensor(&hi2c2, brown);
+
+//	  strcpy((char*)buf, "Press to close Jaw...\n\r");
+//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+//	  	  //wait until button pushed
+//	   }
+//	  HAL_Delay(2000);
+//	  gripper_motor_position(SERVO_0);
+//	  strcpy((char*)buf, "Press to 45 degrees Jaw...\n\r");
+//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+//		  //wait until button pushed
+//	   }
+//	  gripper_motor_position(SERVO_45);
+//	  HAL_Delay(2000);
+//	  strcpy((char*)buf, "Press to 90 degrees Jaw...\n\r");
+//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+//		  //wait until button pushed
+//	   }
+//	  gripper_motor_position(SERVO_90);
+//	  HAL_Delay(2000);
 
 //	  switch (state){
 //	  case (navigation):
@@ -1531,7 +1531,7 @@ void stop_and_approach(void){
 	left_motor_speed(SERVO_STOP);
 	right_motor_speed(SERVO_STOP);
 
-	gripper_motor_position(SERVO_0);
+	gripper_motor_position(SERVO_90);
 
 	//slow ramp up
 	left_motor_speed(SERVO_FORWARD);
@@ -1566,7 +1566,7 @@ void stop_and_approach(void){
 void grab_legoman(void){
 	//close grip
 
-	gripper_motor_position(SERVO_180);
+	gripper_motor_position(SERVO_0);
 
 	//drive back
 	left_motor_speed(SERVO_BACKWARD);
