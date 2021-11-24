@@ -1316,6 +1316,9 @@ void follow_line(void){
 	char left_str[5];
 	char right_str[5];
 
+	sprintf(left_str, "error");
+	sprintf(right_str, "error");
+
 	if (left_colour == red){
 		//turn robot slightly right
 		left_motor_speed(SERVO_STOP);
