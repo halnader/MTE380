@@ -155,14 +155,26 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define BrClearH 0
 #define BrClearL 0
 
-#define REDH_THRESHOLD 17000
-#define REDL_THRESHOLD 12800
+#define REDH_R_THRESHOLD 17000
+#define REDL_R_THRESHOLD 12800
+#define REDH_G_THRESHOLD 100000
+#define REDL_G_THRESHOLD 0
+#define REDH_B_THRESHOLD 100000
+#define REDL_B_THRESHOLD 0
 
-#define GREENH_THRESHOLD 19500
-#define GREENL_THRESHOLD 13200
+#define GREENH_R_THRESHOLD 100000
+#define GREENL_R_THRESHOLD 0
+#define GREENH_G_THRESHOLD 19500
+#define GREENL_G_THRESHOLD 13200
+#define GREENH_B_THRESHOLD 100000
+#define GREENL_B_THRESHOLD 0
 
-#define BLUEH_THRESHOLD 18000
-#define BLUEL_THRESHOLD 15000
+#define BLUEH_R_THRESHOLD 100000
+#define BLUEL_R_THRESHOLD 0
+#define BLUEH_G_THRESHOLD 100000
+#define BLUEL_G_THRESHOLD 0
+#define BLUEH_B_THRESHOLD 18000
+#define BLUEL_B_THRESHOLD 15000
 
 #define BROWNH_R_THRESHOLD 20000
 #define BROWNL_R_THRESHOLD 17000
@@ -192,7 +204,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVOG_45_PULSE 270
 
 //line following, higher number, sharper turns
-#define LINE_TURN_TIME 100
+#define LINE_TURN_TIME 50
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -256,6 +268,8 @@ void calibrate_as_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour
 void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
 void grab_legoman(void);
 void check_if_safezone_crossed(void);
+void check_if_made_to_end(void);
+void stop_and_approach(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -426,7 +440,7 @@ int main(void)
 	  case (search):
 			  follow_line();
 			  check_if_safezone_crossed();
-			  //check_if_made_to_end();
+			  check_if_made_to_end();
 			  if(!legoman_pickedup && return_to_start){
 				  state = drop_continue;
 			  } else if (!legoman_pickedup && !return_to_start) {
@@ -436,6 +450,8 @@ int main(void)
 	  case (drop_continue):
 			  break;
 	  case (drop_end):
+			  left_motor_speed(SERVO_STOP);
+	  	  	  right_motor_speed(SERVO_STOP);
 			  break;
 	  default:
 		  break;
@@ -1295,7 +1311,8 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
 
 	//check for max out of the optical channels
-	if(data.red > BROWNL_R_THRESHOLD &&
+	if(
+			data.red > BROWNL_R_THRESHOLD &&
 			data.red < BROWNH_R_THRESHOLD &&
 
 			data.green > BROWNL_G_THRESHOLD &&
@@ -1304,18 +1321,42 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 			data.blue > BROWNL_B_THRESHOLD &&
 			data.blue < BROWNH_B_THRESHOLD){
 		colour = brown;
-	} else if (data.red > REDL_THRESHOLD &&
-			data.red < REDH_THRESHOLD &&
+	} else if (
+			data.red > REDL_R_THRESHOLD &&
+			data.red < REDH_R_THRESHOLD &&
+
+			data.green > REDL_G_THRESHOLD &&
+			data.green < REDH_G_THRESHOLD &&
+
+			data.blue > REDL_B_THRESHOLD &&
+			data.blue < REDL_B_THRESHOLD &&
+
 			data.red > data.blue &&
 			data.red > data.green){
 		colour = red;
-	} else if (data.green > GREENL_THRESHOLD &&
-			data.green < GREENH_THRESHOLD &&
+	} else if (
+			data.red > GREENL_R_THRESHOLD &&
+			data.red < GREENH_R_THRESHOLD &&
+
+			data.green > GREENL_G_THRESHOLD &&
+			data.green < GREENH_G_THRESHOLD &&
+
+			data.blue > GREENL_B_THRESHOLD &&
+			data.blue < GREENL_B_THRESHOLD &&
+
 			data.green > data.red &&
 			data.green > data.blue){
 		colour = green;
-	} else if (data.blue > BLUEL_THRESHOLD &&
-			data.blue < BLUEH_THRESHOLD &&
+	} else if (
+			data.red > BLUEL_R_THRESHOLD &&
+			data.red < BLUEH_R_THRESHOLD &&
+
+			data.green > BLUEL_G_THRESHOLD &&
+			data.green < BLUEH_G_THRESHOLD &&
+
+			data.blue > BLUEL_B_THRESHOLD &&
+			data.blue < BLUEL_B_THRESHOLD &&
+
 			data.blue > data.red &&
 			data.blue > data.green){
 		colour = blue;
@@ -1603,17 +1644,32 @@ void grab_legoman(void){
 }
 void check_if_safezone_crossed(void){
 	//read colour sensor back left
-	TCS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c1);
+	TCS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c2);
 	//read colour sensor back right
-	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c2);
+	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
 	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
 	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
 
 	if (left_colour == green || right_colour == green){
 		return_to_start = true;
-		legoman_pickedup = true;
-		//changes state
+		legoman_pickedup = false;
+		//changes state to dropcontinue
+	}
+}
+void check_if_made_to_end(void){
+	//read colour sensor left
+	TCS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c2);
+	//read colour sensor right
+	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
+
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+
+	if (left_colour == red && right_colour == red){
+		return_to_start = false;
+		legoman_pickedup = false;
+		//changes state to dropend
 	}
 }
 /* USER CODE END 4 */
