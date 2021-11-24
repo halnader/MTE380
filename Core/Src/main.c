@@ -391,6 +391,7 @@ int main(void)
 	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
 	  	  //wait until button pushed
 	   }
+	  HAL_Delay(2000);
 	  gripper_motor_position(SERVO_0);
 	  strcpy((char*)buf, "Press to 45 degrees Jaw...\n\r");
 	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
@@ -398,6 +399,7 @@ int main(void)
 		  //wait until button pushed
 	   }
 	  gripper_motor_position(SERVO_45);
+	  HAL_Delay(2000);
 //	  strcpy((char*)buf, "Press to 90 degrees Jaw...\n\r");
 //	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 //	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
