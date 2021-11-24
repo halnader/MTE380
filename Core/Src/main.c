@@ -155,7 +155,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define BrClearH 0
 #define BrClearL 0
 
-#define REDH_THRESHOLD 16000
+#define REDH_THRESHOLD 17000
 #define REDL_THRESHOLD 12800
 
 #define GREENH_THRESHOLD 17500
@@ -1460,7 +1460,7 @@ void follow_line(void){
 		strcpy(left_str, "blue");
 	}else if (left_colour == brown){
 		strcpy(left_str, "brown");
-	} else if (left_str == red){
+	} else if (left_colour == red){
 		strcpy(left_str, "red");
 	}
 	if (right_colour == green){
@@ -1469,7 +1469,7 @@ void follow_line(void){
 		strcpy(right_str, "blue");
 	}else if (right_colour == brown){
 		strcpy(right_str, "brown");
-	} else if (right_str == red){
+	} else if (right_colour == red){
 		strcpy(right_str, "red");
 	}
 	sprintf((char*)buf,
