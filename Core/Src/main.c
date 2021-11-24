@@ -189,7 +189,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVOG_MAX_PULSE 400
 #define SERVOG_NEUTRAL_PULSE 300
 #define SERVOG_MIN_PULSE 200
-#define SERVOG_45_PULSE 250
+#define SERVOG_45_PULSE 270
 
 //line following, higher number, sharper turns
 #define LINE_TURN_TIME 100
@@ -400,12 +400,13 @@ int main(void)
 	   }
 	  gripper_motor_position(SERVO_45);
 	  HAL_Delay(2000);
-//	  strcpy((char*)buf, "Press to 90 degrees Jaw...\n\r");
-//	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-//	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
-//		  //wait until button pushed
-//	   }
-//	  gripper_motor_position(SERVO_90);
+	  strcpy((char*)buf, "Press to 90 degrees Jaw...\n\r");
+	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+		  //wait until button pushed
+	   }
+	  gripper_motor_position(SERVO_90);
+	  HAL_Delay(2000);
 
 //	  switch (state){
 //	  case (navigation):
