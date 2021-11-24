@@ -157,10 +157,19 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_BACKWARD 0
 #define SERVO_STOP 90
 
+#define SERVO_180 180
+#define SERVO_0 0
+#define SERVO_90 90
+
 //max pulse for forward driving, neutral for stop, min for back
 #define SERVO_MAX_PULSE 400
 #define SERVO_NEUTRAL_PULSE 303
 #define SERVO_MIN_PULSE 200
+
+//max pulse for forward driving, neutral for stop, min for back
+#define SERVOG_MAX_PULSE 400
+#define SERVOG_NEUTRAL_PULSE 300
+#define SERVOG_MIN_PULSE 200
 
 //line following, higher number, sharper turns
 #define LINE_TURN_TIME 100
@@ -220,6 +229,7 @@ AS_COLOUR_DATA read_as_colour_sensor(I2C_HandleTypeDef * hi2c);
 void start_motor_pwm(void);
 void left_motor_speed(int speed);
 void right_motor_speed(int speed);
+void gripper_motor_position(int pos);
 void follow_line(void);
 void check_if_bullseye_crossed(void);
 void calibrate_as_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
@@ -317,8 +327,21 @@ int main(void)
 	  //wait until button pushed
   }
 
-  left_motor_speed(SERVO_FORWARD);
-  right_motor_speed(SERVO_FORWARD);
+//  left_motor_speed(SERVO_FORWARD);
+//  right_motor_speed(SERVO_FORWARD);
+
+  //gripper test
+  gripper_motor_position(SERVO_0);
+  HAL_Delay(2000);
+  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+	  //wait until button pushed
+  }
+  gripper_motor_position(SERVO_90);
+  HAL_Delay(2000);
+  while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
+	  //wait until button pushed
+  }
+  gripper_motor_position(SERVO_180);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -326,38 +349,38 @@ int main(void)
   while (1)
   {
 
-	  switch (state){
-	  case (navigation):
-			  follow_line();
-	  	  	  //check_if_bullseye_crossed();
-//			  if (!return_to_start && legoman_pickedup){
-//				  state = found;
+//	  switch (state){
+//	  case (navigation):
+//			  follow_line();
+//	  	  	  //check_if_bullseye_crossed();
+////			  if (!return_to_start && legoman_pickedup){
+////				  state = found;
+////			  }
+//			  break;
+//	  case (found):
+//			  stop_and_approach();
+//	  	  	  grab_legoman();
+//	  	  	  if (legoman_pickedup && return_to_start){
+//	  	  		  state = search;
+//	  	  	  }
+//			  break;
+//	  case (search):
+//			  follow_line();
+//			  check_if_safezone_crossed();
+//			  //check_if_made_to_end();
+//			  if(!legoman_pickedup && return_to_start){
+//				  state = drop_continue;
+//			  } else if (!legoman_pickedup && !return_to_start) {
+//				  state = drop_end;
 //			  }
-			  break;
-	  case (found):
-			  stop_and_approach();
-	  	  	  grab_legoman();
-	  	  	  if (legoman_pickedup && return_to_start){
-	  	  		  state = search;
-	  	  	  }
-			  break;
-	  case (search):
-			  follow_line();
-			  check_if_safezone_crossed();
-			  //check_if_made_to_end();
-			  if(!legoman_pickedup && return_to_start){
-				  state = drop_continue;
-			  } else if (!legoman_pickedup && !return_to_start) {
-				  state = drop_end;
-			  }
-			  break;
-	  case (drop_continue):
-			  break;
-	  case (drop_end):
-			  break;
-	  default:
-		  break;
-	  }
+//			  break;
+//	  case (drop_continue):
+//			  break;
+//	  case (drop_end):
+//			  break;
+//	  default:
+//		  break;
+//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -615,6 +638,10 @@ static void MX_TIM3_Init(void)
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1143,6 +1170,7 @@ void start_motor_pwm(){
 	//motor left
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 
 	//motor right
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
@@ -1191,6 +1219,15 @@ void right_motor_speed(int speed){
 		__HAL_TIM_SET_COMPARE(htim1, TIM_CHANNEL_2, speed);	//right backward
 	}
 	*/
+}
+void gripper_motor_position(int pos){
+	if(pos == SERVO_180){
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_MAX_PULSE);
+	} else if (pos == SERVO_90){
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_NEUTRAL_PULSE);
+	} else {
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVOG_MIN_PULSE);
+	}
 }
 DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 	DETECTED_COLOUR colour = errorDC;
