@@ -316,14 +316,16 @@ int main(void)
   while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
 	  //wait until button pushed
   }
+
+  left_motor_speed(SERVO_FORWARD);
+  right_motor_speed(SERVO_FORWARD);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  left_motor_speed(SERVO_FORWARD);
-	  right_motor_speed(SERVO_FORWARD);
+
 	  switch (state){
 	  case (navigation):
 			  follow_line();
