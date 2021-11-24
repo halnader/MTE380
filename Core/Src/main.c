@@ -1454,6 +1454,13 @@ void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colou
 	  tcs_calibration_data[colour]._green = tcs_colour_data.green;
 	  tcs_calibration_data[colour]._blue = tcs_colour_data.blue;
 
+		sprintf((char*)buf, "Clear: %d Red: %d Green: %d Blue: %d\n\r",
+				tcs_colour_data.clear,
+				tcs_colour_data.red,
+				tcs_colour_data.green,
+				tcs_colour_data.blue);
+		HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+
 	  HAL_Delay(2000);
 }
 void stop_and_approach(void){
