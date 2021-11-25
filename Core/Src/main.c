@@ -120,6 +120,9 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define TCS_COL_STATUS_REG 0x93
 #define TCS_COL_VALID_BIT 0x01 //bit 0
 #define TCS_COL_READ_DATA_REG 0xB4
+#define TCS_COL_ATIME_REG 0x81
+#define TCS_COL_10_INT_CYCLE 0xF6
+#define TCS_COL_42_INT_CYCLE 0xD5
 
 #define AS_I2C_DELAY 500
 
@@ -281,6 +284,7 @@ void check_if_bullseye_crossed(void);
 void calibrate_as_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
 void calibrate_tcs_colour_sensor(I2C_HandleTypeDef * hi2c, DETECTED_COLOUR colour);
 void grab_legoman(void);
+void spin_back_to_line_following(void);
 void check_if_safezone_crossed(void);
 void check_if_made_to_end(void);
 void stop_and_approach(void);
@@ -397,6 +401,9 @@ int main(void)
 //
   left_motor_speed(SERVO_FORWARD);
   right_motor_speed(SERVO_FORWARD);
+//  spin_back_to_line_following();
+//  left_motor_speed(SERVO_FORWARD);
+//  right_motor_speed(SERVO_FORWARD);
 
   //gripper test
 //  gripper_motor_position(SERVO_0);
@@ -438,11 +445,12 @@ int main(void)
 
 	  switch (state){
 	  case (navigation):
+//				spin_back_to_line_following();
 			  follow_line();
-//	  	  	  check_if_bullseye_crossed();
-			  if (!return_to_start && legoman_pickedup){
-//				  state = found;
-			  }
+////	  	  	  check_if_bullseye_crossed();
+//			  if (!return_to_start && legoman_pickedup){
+////				  state = found;
+//			  }
 			  break;
 	  case (found):
 			  stop_and_approach();
@@ -1070,21 +1078,26 @@ IMU_DATA read_imu_sensor(void){
 	return data;
 }
 bool setup_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
-	HAL_StatusTypeDef HAL_tcs_ret;
-	uint8_t cmd_buf[2];
+    HAL_StatusTypeDef HAL_tcs_ret;
+    uint8_t cmd_buf[2];
 
-	//power on sensor
-	cmd_buf[0] = TCS_COL_EN_REG;
-	cmd_buf[1] = TCS_COL_POWER_NO_WAIT;
-	HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 2, TCS_I2C_DELAY);
+    //power on sensor
+    cmd_buf[0] = TCS_COL_EN_REG;
+    cmd_buf[1] = TCS_COL_POWER_NO_WAIT;
+    HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 2, TCS_I2C_DELAY);
 
-	//wait at least 2.4ms after first power on
-	HAL_Delay(3);
+    //wait at least 2.4ms after first power on
+    HAL_Delay(3);
 
-	if (HAL_tcs_ret == HAL_OK){
-		return true;
-	}
-	return false;
+    //increase integration time to 101 ms instead of default 2.4ms
+    cmd_buf[0] = TCS_COL_ATIME_REG;
+    cmd_buf[1] = TCS_COL_42_INT_CYCLE;
+    HAL_tcs_ret = HAL_I2C_Master_Transmit(hi2c, TCS34725_ADDR, cmd_buf, 2, TCS_I2C_DELAY);
+
+    if (HAL_tcs_ret == HAL_OK){
+        return true;
+    }
+    return false;
 }
 TCS_COLOUR_DATA read_tcs_colour_sensor(I2C_HandleTypeDef * hi2c){
 	TCS_COLOUR_DATA data = {0,0,0,0};
@@ -1338,25 +1351,22 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 
 	if (isRight)
 	{
-
-
-		if (r > 250 && g > 200 && b > 150)
+		if (r > 250 && g > 200)
 		{
 			colour = brown;
 		}
-		else if (r > 250 && g < 150 && b < 150)
+		else if (r > 250 && g < 150)
 		{
 			colour = red;
 		}
 	}
 	else
 	{
-
-		if (r > 250 && g > 200 && b > 150)
+		if (r > 250 && g > 200)
 		{
 			colour = brown;
 		}
-		else if (r > 250 && g < 200 && b < 150)
+		else if (r > 250 && g < 150)
 		{
 			colour = red;
 		}
@@ -1541,7 +1551,18 @@ void follow_line(void){
 	strcpy(left_str, "error");
 	strcpy(right_str, "error");
 
-	if (left_colour == red){
+
+	if (right_colour == red){
+		//turn robot slightly right
+		right_motor_speed(SERVO_BACKWARD);
+		while (right_colour == red)
+		{
+			right_colour_data = read_tcs_colour_sensor(&hi2c1);
+			right_colour = determine_tcs_colour(right_colour_data, true);
+		}
+//		HAL_Delay(LINE_TURN_TIME);
+		right_motor_speed(SERVO_FORWARD);
+	} else if (left_colour == red){
 		//turn robot slightly left
 		left_motor_speed(SERVO_BACKWARD);
 
@@ -1552,17 +1573,30 @@ void follow_line(void){
 		}
 //		HAL_Delay(LINE_TURN_TIME);
 		left_motor_speed(SERVO_FORWARD);
-	} else if (right_colour == red){
-		//turn robot slightly right
-		right_motor_speed(SERVO_BACKWARD);
-		while (right_colour == red)
-		{
-			right_colour_data = read_tcs_colour_sensor(&hi2c2);
-			right_colour = determine_tcs_colour(left_colour_data, true);
-		}
-//		HAL_Delay(LINE_TURN_TIME);
-		right_motor_speed(SERVO_FORWARD);
 	}
+
+//	if (left_colour == red){
+//		//turn robot slightly left
+//		left_motor_speed(SERVO_BACKWARD);
+//
+//		while (left_colour == red)
+//		{
+//			left_colour_data = read_tcs_colour_sensor(&hi2c2);
+//			left_colour = determine_tcs_colour(left_colour_data, false);
+//		}
+////		HAL_Delay(LINE_TURN_TIME);
+//		left_motor_speed(SERVO_FORWARD);
+//	} else if (right_colour == red){
+//		//turn robot slightly right
+//		right_motor_speed(SERV	O_BACKWARD);
+//		while (right_colour == red)
+//		{
+//			right_colour_data = read_tcs_colour_sensor(&hi2c1);
+//			right_colour = determine_tcs_colour(right_colour_data, true);
+//		}
+////		HAL_Delay(LINE_TURN_TIME);
+//		right_motor_speed(SERVO_FORWARD);
+//	}
 
 	if (left_colour == green){
 		strcpy(left_str, "green");
@@ -1642,6 +1676,7 @@ void stop_and_approach(void){
 	right_motor_speed(SERVO_STOP);
 
 	gripper_motor_position(SERVO_90);
+	HAL_Delay(200);
 
 	//slow ramp up
 	left_motor_speed(SERVO_FORWARD);
@@ -1677,21 +1712,34 @@ void grab_legoman(void){
 	//close grip
 
 	gripper_motor_position(SERVO_0);
+	HAL_Delay(4000);
 
 	//drive back
 	left_motor_speed(SERVO_BACKWARD);
 	right_motor_speed(SERVO_BACKWARD);
 	HAL_Delay(1000);
 
+	spin_back_to_line_following();
+
+	legoman_pickedup = true;
+}
+void spin_back_to_line_following(void){
 	//turn in place until right, then left colour sensors detect red
 	left_motor_speed(SERVO_FORWARD);
 	right_motor_speed(SERVO_BACKWARD);
+
+//	HAL_Delay(3000);
 
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	while (!(right_colour == red)){
+		right_colour_data = read_tcs_colour_sensor(&hi2c1);
+		right_colour = determine_tcs_colour(right_colour_data, true);
+	}
+
+	while (right_colour == red){
 		right_colour_data = read_tcs_colour_sensor(&hi2c1);
 		right_colour = determine_tcs_colour(right_colour_data, true);
 	}
@@ -1706,10 +1754,8 @@ void grab_legoman(void){
 		left_colour = determine_tcs_colour(left_colour_data, false);
 	}
 
-	left_motor_speed(SERVO_STOP);
-	right_motor_speed(SERVO_STOP);
-
-	legoman_pickedup = true;
+	left_motor_speed(SERVO_FORWARD);
+	right_motor_speed(SERVO_FORWARD);
 }
 void check_if_safezone_crossed(void){
 	//read colour sensor back left
