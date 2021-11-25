@@ -183,6 +183,20 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define BROWNH_B_THRESHOLD 15500
 #define BROWNL_B_THRESHOLD 11200
 
+#define RED_MIN_L 1511
+#define RED_MAX_L 45019
+#define GREEN_MIN_L 1475
+#define GREEN_MAX_L 56166
+#define BLUE_MIN_L 1400
+#define BLUE_MAX_L 52588
+
+#define RED_MIN_R 1767
+#define RED_MAX_R 49031
+#define GREEN_MIN_R 1682
+#define GREEN_MAX_R 62950
+#define BLUE_MIN_R 1625
+#define BLUE_MAX_R 59314
+
 #define SERVO_FORWARD 180
 #define SERVO_BACKWARD 0
 #define SERVO_STOP 90
@@ -204,7 +218,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVOG_45_PULSE 270
 
 //line following, higher number, sharper turns
-#define LINE_TURN_TIME 50
+#define LINE_TURN_TIME 200
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -380,7 +394,7 @@ int main(void)
   while(HAL_GPIO_ReadPin(B1_Pin_GPIO_Port, B1_Pin_Pin)){
 	  //wait until button pushed
   }
-
+//
   left_motor_speed(SERVO_FORWARD);
   right_motor_speed(SERVO_FORWARD);
 
@@ -425,9 +439,9 @@ int main(void)
 	  switch (state){
 	  case (navigation):
 			  follow_line();
-	  	  	  check_if_bullseye_crossed();
+//	  	  	  check_if_bullseye_crossed();
 			  if (!return_to_start && legoman_pickedup){
-				  state = found;
+//				  state = found;
 			  }
 			  break;
 	  case (found):
@@ -456,6 +470,8 @@ int main(void)
 	  default:
 		  break;
 	  }
+
+	  HAL_Delay(200);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -1307,9 +1323,41 @@ void gripper_motor_position(int pos){
 	}
 
 }
-DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
+DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 	DETECTED_COLOUR colour = errorDC;
+	int r = 0;
+	int g = 0;
+	int b = 0;
 
+	if (isRight)
+	{
+		r = ((float)data.red - RED_MIN_R) / (RED_MAX_R - RED_MIN_R) * 255.0;
+		g = ((float)data.green - GREEN_MIN_R) / (GREEN_MAX_R - GREEN_MIN_R) * 255.0;
+		b = ((float)data.blue - BLUE_MIN_R) / (BLUE_MAX_R - BLUE_MIN_R) * 255.0;
+	}
+	else
+	{
+		r = ((float)data.red - RED_MIN_L) / (RED_MAX_L - RED_MIN_L) * 255.0;
+		g = ((float)data.green - GREEN_MIN_L) / (GREEN_MAX_L - GREEN_MIN_L) * 255.0;
+		b = ((float)data.blue - BLUE_MIN_L) / (BLUE_MAX_L - BLUE_MIN_L) * 255.0;
+	}
+
+	if (r > 70 && g > 40 && b > 30)
+	{
+		colour = brown;
+	} else {
+		colour = red;
+	}
+//	else if (r > 50 && g < 50 && b < 40)
+//	{
+//		colour = red;
+//	}
+
+	sprintf((char*)buf,
+				  "Red: %d \tGreen: %d \tBlue: %d \n\r\n",
+				  r, g, b);
+	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	/*
 	//check for max out of the optical channels
 	if(
 			data.red > BROWNL_R_THRESHOLD &&
@@ -1361,6 +1409,7 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data){
 			data.blue > data.green){
 		colour = blue;
 	}
+	*/
 
 //	if (data.clear < tcs_calibration_data[red]._clear + TCS_COLOUR_TOLERANCE &&
 //		data.clear > tcs_calibration_data[red]._clear - TCS_COLOUR_TOLERANCE &&
@@ -1465,17 +1514,17 @@ void follow_line(void){
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	sprintf((char*)buf, "LRC: %d | %d\n\rLRRed: %d | %d\n\rLRGre: %d | %d\n\rLRBlu: %d | %d\n\r",
-			left_colour_data.clear, right_colour_data.clear,
-			left_colour_data.red, right_colour_data.red,
-			left_colour_data.green, right_colour_data.green,
-			left_colour_data.blue, right_colour_data.blue);
-	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	sprintf((char*)buf, "LRC: %d | %d\n\rLRRed: %d | %d\n\rLRGre: %d | %d\n\rLRBlu: %d | %d\n\r",
+//			left_colour_data.clear, right_colour_data.clear,
+//			left_colour_data.red, right_colour_data.red,
+//			left_colour_data.green, right_colour_data.green,
+//			left_colour_data.blue, right_colour_data.blue);
+//	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 //	sprintf((char*)buf, "Right - C: %d Red: %d Green: %d Blue: %d\n\r", right_colour_data.clear, right_colour_data.red, right_colour_data.green, right_colour_data.blue);
 //	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 
-	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
-	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data, false);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	char left_str[10];
 	char right_str[10];
@@ -1486,11 +1535,22 @@ void follow_line(void){
 	if (left_colour == red){
 		//turn robot slightly left
 		left_motor_speed(SERVO_STOP);
+
+//		while (left_colour == red)
+//		{
+//			left_colour_data = read_tcs_colour_sensor(&hi2c2);
+//			left_colour = determine_tcs_colour(left_colour_data, false);
+//		}
 		HAL_Delay(LINE_TURN_TIME);
 		left_motor_speed(SERVO_FORWARD);
 	} else if (right_colour == red){
 		//turn robot slightly right
 		right_motor_speed(SERVO_STOP);
+//		while (right_colour == red)
+//		{
+//			right_colour_data = read_tcs_colour_sensor(&hi2c2);
+//			right_colour = determine_tcs_colour(left_colour_data, true);
+//		}
 		HAL_Delay(LINE_TURN_TIME);
 		right_motor_speed(SERVO_FORWARD);
 	}
@@ -1524,8 +1584,8 @@ void check_if_bullseye_crossed(void){
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
-	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data, false);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	if (left_colour == blue || right_colour == blue){
 		return_to_start = true;
@@ -1588,16 +1648,16 @@ void stop_and_approach(void){
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
-	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data, false);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	//until either front sensors detects red
 	while (!(left_colour == red || right_colour == red)){
 		//keep driving forward slowly
 		left_colour_data = read_tcs_colour_sensor(&hi2c2);
 		right_colour_data = read_tcs_colour_sensor(&hi2c1);
-		left_colour = determine_tcs_colour(left_colour_data);
-		right_colour = determine_tcs_colour(right_colour_data);
+		left_colour = determine_tcs_colour(left_colour_data, false);
+		right_colour = determine_tcs_colour(right_colour_data, true);
 	}
 
 	//stop again
@@ -1620,21 +1680,21 @@ void grab_legoman(void){
 
 	//read colour sensor from right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
-	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	while (!(right_colour == red)){
 		right_colour_data = read_tcs_colour_sensor(&hi2c1);
-		right_colour = determine_tcs_colour(right_colour_data);
+		right_colour = determine_tcs_colour(right_colour_data, true);
 	}
 
 	//read colour sensor front left
 	TCS_COLOUR_DATA left_colour_data = read_tcs_colour_sensor(&hi2c2);
-	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data, false);
 	//until either front sensors detects red
 	while (!(left_colour == red)){
 		//keep driving forward slowly
 		left_colour_data = read_tcs_colour_sensor(&hi2c2);
-		left_colour = determine_tcs_colour(left_colour_data);
+		left_colour = determine_tcs_colour(left_colour_data, false);
 	}
 
 	left_motor_speed(SERVO_STOP);
@@ -1648,8 +1708,8 @@ void check_if_safezone_crossed(void){
 	//read colour sensor back right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
-	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data, false);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	if (left_colour == green || right_colour == green){
 		return_to_start = true;
@@ -1663,8 +1723,8 @@ void check_if_made_to_end(void){
 	//read colour sensor right
 	TCS_COLOUR_DATA right_colour_data = read_tcs_colour_sensor(&hi2c1);
 
-	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data);
-	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data);
+	DETECTED_COLOUR left_colour = determine_tcs_colour(left_colour_data, false);
+	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	if (left_colour == red && right_colour == red){
 		return_to_start = false;
