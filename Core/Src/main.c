@@ -208,6 +208,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVO_45 45
 #define SERVO_0 0
 #define SERVO_90 90
+#define SERVO_180 180
 
 //max pulse for forward driving, neutral for stop, min for back
 #define SERVO_MAX_PULSE 400
@@ -401,6 +402,7 @@ int main(void)
 //
   left_motor_speed(SERVO_FORWARD);
   right_motor_speed(SERVO_FORWARD);
+
 //  spin_back_to_line_following();
 //  left_motor_speed(SERVO_FORWARD);
 //  right_motor_speed(SERVO_FORWARD);
@@ -445,15 +447,14 @@ int main(void)
 
 	  switch (state){
 	  case (navigation):
-//				spin_back_to_line_following();
 			  follow_line();
-////	  	  	  check_if_bullseye_crossed();
-//			  if (!return_to_start && legoman_pickedup){
-////				  state = found;
-//			  }
+	  	  	  check_if_bullseye_crossed();
+			  if (!return_to_start && legoman_pickedup){
+				  state = found;
+			  }
 			  break;
 	  case (found):
-			  stop_and_approach();
+//			  stop_and_approach();
 	  	  	  grab_legoman();
 	  	  	  if (legoman_pickedup && return_to_start){
 	  	  		  state = search;
@@ -1359,6 +1360,10 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 		{
 			colour = red;
 		}
+		else if (b > 250 && g < 200)
+		{
+			colour = blue;
+		}
 	}
 	else
 	{
@@ -1366,9 +1371,13 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 		{
 			colour = brown;
 		}
-		else if (r > 250 && g < 150)
+		else if (r > 250 && g < 200)
 		{
 			colour = red;
+		}
+		else if (b > 250 && g < 200)
+		{
+			colour = blue;
 		}
 	}
 
@@ -1616,10 +1625,10 @@ void follow_line(void){
 	} else if (right_colour == red){
 		strcpy(right_str, "red");
 	}
-	sprintf((char*)buf,
-				  "Left: %s \tRight: %s\n\r",
-				  left_str, right_str);
-	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	sprintf((char*)buf,
+//				  "Left: %s \tRight: %s\n\r",
+//				  left_str, right_str);
+//	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 }
 void check_if_bullseye_crossed(void){
 	//read colour sensor front left
@@ -1631,7 +1640,6 @@ void check_if_bullseye_crossed(void){
 	DETECTED_COLOUR right_colour = determine_tcs_colour(right_colour_data, true);
 
 	if (left_colour == blue || right_colour == blue){
-		return_to_start = true;
 		legoman_pickedup = true;
 		//changes state
 	}
@@ -1709,15 +1717,27 @@ void stop_and_approach(void){
 	right_motor_speed(SERVO_STOP);
 }
 void grab_legoman(void){
-	//close grip
-
+	// OPEN grip
 	gripper_motor_position(SERVO_0);
-	HAL_Delay(4000);
+	left_motor_speed(SERVO_STOP);
+	right_motor_speed(SERVO_STOP);
+	HAL_Delay(3000);
+
+	// Move forward a little bit
+	left_motor_speed(SERVO_FORWARD);
+	right_motor_speed(SERVO_FORWARD);
+	HAL_Delay(300);
+	left_motor_speed(SERVO_STOP);
+	right_motor_speed(SERVO_STOP);
+	HAL_Delay(2000);
+	// Close Grip
+	gripper_motor_position(SERVO_180);
+	HAL_Delay(2000);
 
 	//drive back
 	left_motor_speed(SERVO_BACKWARD);
 	right_motor_speed(SERVO_BACKWARD);
-	HAL_Delay(1000);
+	HAL_Delay(2000);
 
 	spin_back_to_line_following();
 
