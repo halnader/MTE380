@@ -1370,10 +1370,18 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 		if (r > 250 && g > 200)
 		{
 			colour = brown;
+			sprintf((char*)buf,
+						  "\t brown\n",
+						  r, g, b, isRight);
+			HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 		}
 		else if (r > 250 && g < 200)
 		{
 			colour = red;
+			sprintf((char*)buf,
+						  "\t RED!\n",
+						  r, g, b, isRight);
+			HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 		}
 		else if (b > 250 && g < 200)
 		{
@@ -1381,10 +1389,10 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 		}
 	}
 
-	sprintf((char*)buf,
-				  "Red: %d \tGreen: %d \tBlue: %d \tisRight?: %d\n\r\n",
-				  r, g, b, isRight);
-	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+//	sprintf((char*)buf,
+//				  "Red: %d \tGreen: %d \tBlue: %d \tisRight?: %d\n\r\n",
+//				  r, g, b, isRight);
+//	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	/*
 	//check for max out of the optical channels
 	if(
@@ -1625,10 +1633,10 @@ void follow_line(void){
 	} else if (right_colour == red){
 		strcpy(right_str, "red");
 	}
-//	sprintf((char*)buf,
-//				  "Left: %s \tRight: %s\n\r",
-//				  left_str, right_str);
-//	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+	sprintf((char*)buf,
+				  "Colour: %s\n", // \tRight: %s\n\r",
+				  left_str); //right_str);
+	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 }
 void check_if_bullseye_crossed(void){
 	//read colour sensor front left
