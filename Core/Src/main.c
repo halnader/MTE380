@@ -218,7 +218,7 @@ typedef struct AS_COLOUR_CALIBRATION_DATA{
 #define SERVOG_45_PULSE 270
 
 //line following, higher number, sharper turns
-#define LINE_TURN_TIME 200
+#define LINE_TURN_TIME 300
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -471,7 +471,6 @@ int main(void)
 		  break;
 	  }
 
-	  HAL_Delay(200);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -1329,33 +1328,43 @@ DETECTED_COLOUR determine_tcs_colour(TCS_COLOUR_DATA data, bool isRight){
 	int g = 0;
 	int b = 0;
 
+	int max = data.red;
+	max = max > data.blue ? max : data.blue;
+	max = max > data.green ? max : data.green;
+
+	r = (float)data.red / max * 255.0;
+	g = (float)data.green / max * 255.0;
+	b = (float)data.blue / max * 255.0;
+
 	if (isRight)
 	{
-		r = ((float)data.red - RED_MIN_R) / (RED_MAX_R - RED_MIN_R) * 255.0;
-		g = ((float)data.green - GREEN_MIN_R) / (GREEN_MAX_R - GREEN_MIN_R) * 255.0;
-		b = ((float)data.blue - BLUE_MIN_R) / (BLUE_MAX_R - BLUE_MIN_R) * 255.0;
+
+
+		if (r > 250 && g > 200 && b > 150)
+		{
+			colour = brown;
+		}
+		else if (r > 250 && g < 150 && b < 150)
+		{
+			colour = red;
+		}
 	}
 	else
 	{
-		r = ((float)data.red - RED_MIN_L) / (RED_MAX_L - RED_MIN_L) * 255.0;
-		g = ((float)data.green - GREEN_MIN_L) / (GREEN_MAX_L - GREEN_MIN_L) * 255.0;
-		b = ((float)data.blue - BLUE_MIN_L) / (BLUE_MAX_L - BLUE_MIN_L) * 255.0;
-	}
 
-	if (r > 70 && g > 40 && b > 30)
-	{
-		colour = brown;
-	} else {
-		colour = red;
+		if (r > 250 && g > 200 && b > 150)
+		{
+			colour = brown;
+		}
+		else if (r > 250 && g < 200 && b < 150)
+		{
+			colour = red;
+		}
 	}
-//	else if (r > 50 && g < 50 && b < 40)
-//	{
-//		colour = red;
-//	}
 
 	sprintf((char*)buf,
-				  "Red: %d \tGreen: %d \tBlue: %d \n\r\n",
-				  r, g, b);
+				  "Red: %d \tGreen: %d \tBlue: %d \tisRight?: %d\n\r\n",
+				  r, g, b, isRight);
 	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	/*
 	//check for max out of the optical channels
@@ -1534,24 +1543,24 @@ void follow_line(void){
 
 	if (left_colour == red){
 		//turn robot slightly left
-		left_motor_speed(SERVO_STOP);
+		left_motor_speed(SERVO_BACKWARD);
 
-//		while (left_colour == red)
-//		{
-//			left_colour_data = read_tcs_colour_sensor(&hi2c2);
-//			left_colour = determine_tcs_colour(left_colour_data, false);
-//		}
-		HAL_Delay(LINE_TURN_TIME);
+		while (left_colour == red)
+		{
+			left_colour_data = read_tcs_colour_sensor(&hi2c2);
+			left_colour = determine_tcs_colour(left_colour_data, false);
+		}
+//		HAL_Delay(LINE_TURN_TIME);
 		left_motor_speed(SERVO_FORWARD);
 	} else if (right_colour == red){
 		//turn robot slightly right
-		right_motor_speed(SERVO_STOP);
-//		while (right_colour == red)
-//		{
-//			right_colour_data = read_tcs_colour_sensor(&hi2c2);
-//			right_colour = determine_tcs_colour(left_colour_data, true);
-//		}
-		HAL_Delay(LINE_TURN_TIME);
+		right_motor_speed(SERVO_BACKWARD);
+		while (right_colour == red)
+		{
+			right_colour_data = read_tcs_colour_sensor(&hi2c2);
+			right_colour = determine_tcs_colour(left_colour_data, true);
+		}
+//		HAL_Delay(LINE_TURN_TIME);
 		right_motor_speed(SERVO_FORWARD);
 	}
 
