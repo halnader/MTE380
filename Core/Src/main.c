@@ -486,6 +486,7 @@ int main(void)
 	  case (drop_end):
 			  left_motor_speed(SERVO_STOP);
 	  	  	  right_motor_speed(SERVO_STOP);
+	  	  	  gripper_motor_position(SERVO_90);
 			  break;
 	  default:
 		  break;
